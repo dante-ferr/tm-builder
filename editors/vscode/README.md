@@ -2,7 +2,8 @@
 
 Local VS Code integration for this repository. Validates machine YAML buffers on
 open and change, including unsaved edits, and publishes errors/warnings to VS Code's
-Problems panel. Completes declared states, tape symbols, and movement directions.
+Problems panel. Completes declared states, tape symbols, and movement directions
+inside each tape's `[read, write, direction]` triple.
 
 Open the project root and run `make setup`. The extension uses `python/.venv` by default;
 configure `teocomp.pythonPath` if using another environment. Definitions must be under

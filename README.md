@@ -54,7 +54,7 @@ examples are tracked; other files in those folders are ignored.
 | [copy](machines/copy.yaml) | Flat transitions, multiple tapes, `R`/`S` | [copy](inputs/copy.yaml) or [preloaded tapes](inputs/copy_preloaded.yaml) |
 | [single_tape](machines/single_tape.yaml) | `{state: [...]}` groups, optional matching `from`, quoted symbols, rejection | [binary](inputs/binary.yaml) |
 | [nondeterministic_contains_one](machines/nondeterministic_contains_one.yaml) | Block groups, multiple rules for the same read tuple | [binary](inputs/binary.yaml) |
-| [blank_writer](machines/blank_writer.yaml) | Expanded rule fields, empty input alphabet, `L` | None |
+| [blank_writer](machines/blank_writer.yaml) | Grouped transitions, empty input alphabet, `L` | None |
 | [halt](machines/halt.yaml) | Custom blank symbol, empty rules and terminal sets | None |
 | [loop](machines/loop.yaml) | Self-loop and execution limits (`RUNNING`) | None |
 
@@ -65,10 +65,11 @@ make run MACHINE=machines/single_tape.yaml INPUTS=inputs/binary.yaml
 Required fields: `name`, `model`, `tapes`, `blank`, `input_alphabet`,
 `tape_alphabet`, `states`, `start`, `accept`, `reject`, and `transitions`.
 Empty accept/reject sets and transition lists use `[]`. Each transition requires
-`from`, `read`, `to`, `write`, and `move`:
+`from`, `tapes`, and `to`. Each entry in `tapes` contains the symbol read, the
+symbol written, and the head direction for that tape:
 
 ```yaml
-- {from: copy, read: [a, _], to: copy, write: [a, a], move: [R, R]}
+- {from: copy, tapes: [[a, a, R], [_, a, R]], to: copy}
 ```
 
 Alternatively, group transitions by source state to infer `from`:
@@ -76,16 +77,18 @@ Alternatively, group transitions by source state to infer `from`:
 ```yaml
 transitions: {
   copy: [
-    {read: [a, _], to: copy, write: [a, a], move: [R, R]},
-    {read: [_, _], to: accept, write: [_, _], move: [S, S]}
+    {tapes: [[a, a, R], [_, a, R]], to: copy},
+    {tapes: [[_, _, S], [_, _, S]], to: accept}
   ]
 }
 ```
 
 Block-style YAML works too. In a group, `from` is optional; if supplied, it must
-match the outer state. Both formats require `read`, `to`, `write`, and `move`.
+match the outer state. Both formats require `tapes` and `to` (and `from` in
+the flat format).
 
-Arrays follow tape order. Moves are `L` (left), `R` (right), or `S` (stay).
+The `tapes` array follows tape order. Each triple is `[read, write, move]`;
+moves are `L` (left), `R` (right), or `S` (stay).
 Symbols are single characters; quote numeric or boolean-like YAML values.
 Set `model` to `deterministic` or `nondeterministic`.
 

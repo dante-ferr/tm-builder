@@ -31,13 +31,13 @@ exports.run = async () => {
       const stateErrors = await waitFor(items => items.some(d => d.message.includes("Unknown state 'typo'")));
       assert.ok(stateErrors.some(d => d.range.start.line === 17), 'Diagnostics point at the unsaved rule');
       assert.equal(document.isDirty, true, 'Validation runs before saving');
-      await replace(original.replace('move: [R, R]', 'move: [UP, R]'));
+      await replace(original.replace('[a, a, R]', '[a, a, UP]'));
       await waitFor(items => items.some(d => d.message.includes("'L', 'R' or 'S'")));
       await replace(original);
       await waitFor(items => items.length === 0);
       assert.equal(document.getText(), original);
       const completion = await vscode.commands.executeCommand('vscode.executeCompletionItemProvider',
-        document.uri, document.positionAt(original.indexOf('read: [a') + 7));
+        document.uri, document.positionAt(original.indexOf('[a, a, R]') + 2));
       assert.ok(completion.items.some(item => item.label === 'a' && item.insertText === '"a"'),
         'Symbol suggestions insert YAML-safe quoted strings');
     } finally { if (document.getText() !== original) await replace(original); }

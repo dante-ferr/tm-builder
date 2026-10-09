@@ -11,11 +11,11 @@ accept: [accept]
 reject: [reject]
 transitions:
   search:
-    - {read: ["0"], to: search, write: ["0"], move: [R]}
-    - {read: ["1"], to: search, write: ["1"], move: [R]}
-    - {read: ["1"], to: verify, write: ["1"], move: [R]}
-    - {read: [_], to: reject, write: [_], move: [S]}
+    - {tapes: [["0", "0", R]], to: search}
+    - {tapes: [["1", "1", R]], to: search}
+    - {tapes: [["1", "1", R]], to: verify}
+    - {tapes: [[_, _, S]], to: reject}
   verify:
-    - {read: ["0"], to: verify, write: ["0"], move: [R]}
-    - {read: ["1"], to: verify, write: ["1"], move: [R]}
-    - {read: [_], to: accept, write: [_], move: [S]}
+    - {tapes: [["0", "0", R]], to: verify}
+    - {tapes: [["1", "1", R]], to: verify}
+    - {tapes: [[_, _, S]], to: accept}

@@ -11,13 +11,13 @@ accept: [accept]
 reject: [reject]
 transitions: {
   scan: [
-    {from: scan, read: ["0"], to: scan, write: ["0"], move: [R]},
-    {read: ["1"], to: last_one, write: ["1"], move: [R]},
-    {read: [_], to: reject, write: [_], move: [S]}
+    {from: scan, tapes: [["0", "0", R]], to: scan},
+    {tapes: [["1", "1", R]], to: last_one},
+    {tapes: [[_, _, S]], to: reject}
   ],
   last_one: [
-    {read: ["0"], to: scan, write: ["0"], move: [R]},
-    {read: ["1"], to: last_one, write: ["1"], move: [R]},
-    {read: [_], to: accept, write: [_], move: [S]}
+    {tapes: [["0", "0", R]], to: scan},
+    {tapes: [["1", "1", R]], to: last_one},
+    {tapes: [[_, _, S]], to: accept}
   ]
 }

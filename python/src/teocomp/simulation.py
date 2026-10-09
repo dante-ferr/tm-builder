@@ -89,20 +89,21 @@ def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations
         seen.add(signature)
         options = [transition for transition in definition.transitions
                    if transition.source == state
-                   and tuple(tape.read() for tape in current_tapes) == tuple(transition.read)]
+                   and tuple(tape.read() for tape in current_tapes)
+                   == tuple(action[0] for action in transition.tapes)]
         if not options:
             continue
         if step_count >= max_steps:
             exhausted = False
             continue
         for transition in options:
-            if len(transition.read) != definition.tapes or len(transition.write) != definition.tapes or len(transition.move) != definition.tapes:
+            if len(transition.tapes) != definition.tapes:
                 continue
             if len(records) >= max_configurations:
                 exhausted = False
                 break
             next_tapes = []
-            for tape, symbol, direction in zip(current_tapes, transition.write, transition.move):
+            for tape, (_read, symbol, direction) in zip(current_tapes, transition.tapes):
                 clone = Tape(definition.blank)
                 clone.cells = tape.cells.copy()
                 clone.head = tape.head

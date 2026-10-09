@@ -22,7 +22,7 @@ def machine_diagram(definition: MachineDefinition) -> Digraph:
     graph.edge(start_id, identifiers[definition.start])
     edges = defaultdict(list)
     for t in definition.transitions:
-        per_tape = [f"{r} → {w}, {m}" for r, w, m in zip(t.read, t.write, t.move)]
+        per_tape = [f"{r} → {w}, {m}" for r, w, m in t.tapes]
         edges[t.source, t.to].append(" | ".join(per_tape))
     for (source, target), labels in edges.items():
         graph.edge(identifiers[source], identifiers[target], label=escape("\n".join(labels)))

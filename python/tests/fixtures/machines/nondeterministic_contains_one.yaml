@@ -11,10 +11,10 @@ accept: [accept]
 reject: [reject]
 inputs: ["00100"]
 transitions:
-  - {from: search, read: ["0"], to: search, write: ["0"], move: [R]}
-  - {from: search, read: ["1"], to: search, write: ["1"], move: [R]}
-  - {from: search, read: ["1"], to: verify, write: ["1"], move: [R]}
-  - {from: search, read: [_], to: reject, write: [_], move: [S]}
-  - {from: verify, read: ["0"], to: verify, write: ["0"], move: [R]}
-  - {from: verify, read: ["1"], to: verify, write: ["1"], move: [R]}
-  - {from: verify, read: [_], to: accept, write: [_], move: [S]}
+  - {from: search, tapes: [["0", "0", R]], to: search}
+  - {from: search, tapes: [["1", "1", R]], to: search}
+  - {from: search, tapes: [["1", "1", R]], to: verify}
+  - {from: search, tapes: [[_, _, S]], to: reject}
+  - {from: verify, tapes: [["0", "0", R]], to: verify}
+  - {from: verify, tapes: [["1", "1", R]], to: verify}
+  - {from: verify, tapes: [[_, _, S]], to: accept}

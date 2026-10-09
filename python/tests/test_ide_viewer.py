@@ -21,21 +21,21 @@ class IDEViewerTests(unittest.TestCase):
     def test_grouped_diagnostics_point_to_original_yaml(self):
         prefix = SOURCE[:SOURCE.index('transitions:')]
         rules = ('transitions:\n  copy:\n'
-                 '    - {read: [a, _], to: typo, write: [a, a], move: [R, R]}\n'
-                 '    - {read: [b, _], to: copy, write: [b, b], move: [R]}\n')
+                 '    - {tapes: [[a, a, R], [_, a, R]], to: typo}\n'
+                 '    - {tapes: [[b, b, R]], to: copy}\n')
         result = inspect_source(prefix + rules)
         self.assertFalse(result['valid'])
         first_line = len(prefix.splitlines()) + 3
         self.assertEqual(result['diagnostics'][0]['line'], first_line)
         self.assertEqual(result['diagnostics'][1]['line'], first_line + 1)
         self.assertIn('Unknown state', result['diagnostics'][0]['message'])
-        self.assertIn('needs 2 entries', result['diagnostics'][1]['message'])
+        self.assertIn('tapes needs 2 entries', result['diagnostics'][1]['message'])
         self.assertEqual(result['suggestions']['states'], ['copy', 'accept'])
 
     def test_grouped_halting_source_points_to_state_key(self):
         prefix = SOURCE[:SOURCE.index('transitions:')]
         result = inspect_source(prefix + 'transitions:\n  accept:\n'
-                                '    - {read: [_, _], to: accept, write: [_, _], move: [S, S]}\n')
+                                '    - {tapes: [[_, _, S], [_, _, S]], to: accept}\n')
         self.assertFalse(result['valid'])
         self.assertEqual(result['diagnostics'][0]['line'], len(prefix.splitlines()) + 2)
         self.assertIn('outgoing transitions', result['diagnostics'][0]['message'])

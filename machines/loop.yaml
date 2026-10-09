@@ -10,4 +10,4 @@ start: loop
 accept: []
 reject: []
 transitions:
-  - {from: loop, read: [_], to: loop, write: [_], move: [S]}
+  - {from: loop, tapes: [[_, _, S]], to: loop}

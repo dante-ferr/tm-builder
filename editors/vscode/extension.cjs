@@ -106,8 +106,10 @@ function activate(context) {
         if (!scope(document)) return [];
         const values = completions.get(document.uri.toString()); if (!values) return [];
         const prefix = document.lineAt(position.line).text.slice(0, position.character);
-        const key = [...prefix.matchAll(/\b(from|to|read|write|move|model|start|accept|reject)\s*:/g)].at(-1)?.[1];
-        const options = key === 'move' ? values.moves : ['read', 'write'].includes(key) ? values.symbols : values.states;
+        const key = [...prefix.matchAll(/\b(from|to|read|write|move|tapes|model|start|accept|reject)\s*:/g)].at(-1)?.[1];
+        const action = prefix.slice(prefix.lastIndexOf('[') + 1);
+        const options = key === 'move' || (key === 'tapes' && (action.match(/,/g) || []).length >= 2)
+          ? values.moves : ['read', 'write', 'tapes'].includes(key) ? values.symbols : values.states;
         const items = key === 'model' ? values.models : options;
         const token = prefix.match(/(?:^|[\s,[{:])((?:"[^"\n]*|'[^'\n]*|[A-Za-z0-9_-]+))$/)?.[1] || '';
         const closingQuote = ['"', "'"].includes(token[0]) && document.lineAt(position.line).text[position.character] === token[0];

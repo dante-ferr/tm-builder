@@ -42,7 +42,7 @@ class MachineTests(unittest.TestCase):
 
     def test_grouped_flow_mapping_and_optional_from(self):
         prefix = SOURCE[:SOURCE.index('transitions:')]
-        source = prefix + 'transitions: {copy: [{from: copy, read: [_, _], to: accept, write: [_, _], move: [S, S]}]}\n'
+        source = prefix + 'transitions: {copy: [{from: copy, tapes: [[_, _, S], [_, _, S]], to: accept}]}\n'
         definition, _ = parse_definition(source)
         self.assertEqual(simulate(definition, ['', ''])['status'], 'ACCEPT')
         self.assert_invalid(source.replace('from: copy', 'from: accept'), "from must match outer state 'copy'")
@@ -56,12 +56,12 @@ class MachineTests(unittest.TestCase):
     def test_grouped_unknown_empty_state_and_missing_fields(self):
         prefix = SOURCE[:SOURCE.index('transitions:')]
         self.assert_invalid(prefix + 'transitions: {typo: []}\n', "Unknown state 'typo'")
-        for field in ('read', 'to', 'write', 'move'):
+        for field in ('tapes', 'to'):
             with self.subTest(field=field):
                 data = yaml.safe_load(grouped_source(SOURCE))
                 del data['transitions']['copy'][0][field]
                 self.assert_invalid(yaml.safe_dump(data), f'transitions.copy.0.{field}: Field required')
-        self.assert_invalid(prefix + 'transitions: {copy: [{read: [a, _], to: copy, write: [a, a], move: [UP, R]}]}\n',
+        self.assert_invalid(prefix + 'transitions: {copy: [{tapes: [[a, a, UP], [_, a, R]], to: copy}]}\n',
                             "'L', 'R' or 'S'")
         self.assert_invalid(prefix + 'transitions: {copy: {}, accept: []}\n', 'valid list')
 
@@ -80,7 +80,7 @@ class MachineTests(unittest.TestCase):
                 self.assertEqual(len(error.diagnostics), 1)
 
     def test_missing_transition_fields_are_rejected(self):
-        for field in ('from', 'read', 'to', 'write', 'move'):
+        for field in ('from', 'tapes', 'to'):
             with self.subTest(field=field):
                 data = yaml.safe_load(SOURCE)
                 del data['transitions'][0][field]
@@ -131,7 +131,7 @@ class MachineTests(unittest.TestCase):
         self.assertEqual(result['status'], 'RUNNING')
 
     def test_duplicate_rules_do_not_silently_override(self):
-        self.assert_invalid(SOURCE + '  - {from: copy, read: [a, _], to: accept, write: [a, a], move: [S, S]}\n', 'Duplicate rule')
+        self.assert_invalid(SOURCE + '  - {from: copy, tapes: [[a, a, S], [_, a, S]], to: accept}\n', 'Duplicate rule')
 
     def test_nondeterministic_rules_with_same_read_tuple_are_valid(self):
         self.assertEqual(parse_definition(NONDETERMINISTIC)[0].model, 'nondeterministic')
@@ -143,9 +143,9 @@ class MachineTests(unittest.TestCase):
     def test_invalid_fields_and_locations(self):
         error = self.assert_invalid(SOURCE.replace('to: accept', 'to: typo'), 'Unknown state')
         self.assertEqual(error.diagnostics[0].line, 18)
-        self.assert_invalid(SOURCE.replace('move: [R, R]', 'move: [R]'), 'needs 2 entries')
-        self.assert_invalid(SOURCE.replace('move: [R, R]', 'move: [UP, R]'), "'L', 'R' or 'S'")
-        self.assert_invalid(SOURCE.replace('write: [a, a]', 'write: [z, a]'), 'Unknown tape symbol')
+        self.assert_invalid(SOURCE.replace('[_, a, R]', '[_, a]'), 'Field required')
+        self.assert_invalid(SOURCE.replace('[_, a, R]', '[_, a, UP]'), "'L', 'R' or 'S'")
+        self.assert_invalid(SOURCE.replace('[a, a, R]', '[a, z, R]'), 'Unknown tape symbol')
         self.assert_invalid(SOURCE.replace('tapes: 2', 'tapes: "2"'), 'integer')
         self.assert_invalid(SOURCE.replace('reject: []', 'reject: [accept]'), 'disjoint')
         self.assert_invalid(SOURCE.replace('from: copy', 'from: accept'), 'outgoing transitions')

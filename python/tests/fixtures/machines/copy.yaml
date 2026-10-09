@@ -13,6 +13,6 @@ inputs: [abba, ""]
 
 # Read/write/move entries are ordered by tape: tape 1, tape 2, ...
 transitions:
-  - {from: copy, read: [a, _], to: copy, write: [a, a], move: [R, R]}
-  - {from: copy, read: [b, _], to: copy, write: [b, b], move: [R, R]}
-  - {from: copy, read: [_, _], to: accept, write: [_, _], move: [S, S]}
+  - {from: copy, tapes: [[a, a, R], [_, a, R]], to: copy}
+  - {from: copy, tapes: [[b, b, R], [_, b, R]], to: copy}
+  - {from: copy, tapes: [[_, _, S], [_, _, S]], to: accept}

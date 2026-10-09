@@ -16,47 +16,44 @@
           "default": null,
           "title": "From"
         },
-        "read": {
+        "tapes": {
           "items": {
-            "maxLength": 1,
-            "minLength": 1,
-            "type": "string"
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "maxLength": 1,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "maxLength": 1,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "L",
+                  "R",
+                  "S"
+                ],
+                "type": "string"
+              }
+            ],
+            "type": "array"
           },
-          "title": "Read",
+          "title": "Tapes",
           "type": "array"
         },
         "to": {
           "minLength": 1,
           "title": "To",
           "type": "string"
-        },
-        "write": {
-          "items": {
-            "maxLength": 1,
-            "minLength": 1,
-            "type": "string"
-          },
-          "title": "Write",
-          "type": "array"
-        },
-        "move": {
-          "items": {
-            "enum": [
-              "L",
-              "R",
-              "S"
-            ],
-            "type": "string"
-          },
-          "title": "Move",
-          "type": "array"
         }
       },
       "required": [
-        "read",
-        "to",
-        "write",
-        "move"
+        "tapes",
+        "to"
       ],
       "title": "GroupedTransition",
       "type": "object"
@@ -69,48 +66,45 @@
           "title": "From",
           "type": "string"
         },
-        "read": {
+        "tapes": {
           "items": {
-            "maxLength": 1,
-            "minLength": 1,
-            "type": "string"
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "maxLength": 1,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "maxLength": 1,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "L",
+                  "R",
+                  "S"
+                ],
+                "type": "string"
+              }
+            ],
+            "type": "array"
           },
-          "title": "Read",
+          "title": "Tapes",
           "type": "array"
         },
         "to": {
           "minLength": 1,
           "title": "To",
           "type": "string"
-        },
-        "write": {
-          "items": {
-            "maxLength": 1,
-            "minLength": 1,
-            "type": "string"
-          },
-          "title": "Write",
-          "type": "array"
-        },
-        "move": {
-          "items": {
-            "enum": [
-              "L",
-              "R",
-              "S"
-            ],
-            "type": "string"
-          },
-          "title": "Move",
-          "type": "array"
         }
       },
       "required": [
         "from",
-        "read",
-        "to",
-        "write",
-        "move"
+        "tapes",
+        "to"
       ],
       "title": "Transition",
       "type": "object"

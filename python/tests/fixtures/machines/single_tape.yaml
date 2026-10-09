@@ -11,12 +11,12 @@ accept: [accept]
 reject: [reject]
 inputs: ["101"]
 transitions:
-  - {from: scan, read: ["0"], to: last_zero, write: ["0"], move: [R]}
-  - {from: scan, read: ["1"], to: last_one, write: ["1"], move: [R]}
-  - {from: last_zero, read: ["0"], to: last_zero, write: ["0"], move: [R]}
-  - {from: last_zero, read: ["1"], to: last_one, write: ["1"], move: [R]}
-  - {from: last_one, read: ["0"], to: last_zero, write: ["0"], move: [R]}
-  - {from: last_one, read: ["1"], to: last_one, write: ["1"], move: [R]}
-  - {from: last_zero, read: [_], to: reject, write: [_], move: [S]}
-  - {from: last_one, read: [_], to: accept, write: [_], move: [S]}
-  - {from: scan, read: [_], to: reject, write: [_], move: [S]}
+  - {from: scan, tapes: [["0", "0", R]], to: last_zero}
+  - {from: scan, tapes: [["1", "1", R]], to: last_one}
+  - {from: last_zero, tapes: [["0", "0", R]], to: last_zero}
+  - {from: last_zero, tapes: [["1", "1", R]], to: last_one}
+  - {from: last_one, tapes: [["0", "0", R]], to: last_zero}
+  - {from: last_one, tapes: [["1", "1", R]], to: last_one}
+  - {from: last_zero, tapes: [[_, _, S]], to: reject}
+  - {from: last_one, tapes: [[_, _, S]], to: accept}
+  - {from: scan, tapes: [[_, _, S]], to: reject}

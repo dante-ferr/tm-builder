@@ -15,24 +15,25 @@ if TYPE_CHECKING:
 
 Symbol = Annotated[str, Field(min_length=1, max_length=1)]
 State = Annotated[str, Field(min_length=1)]
+Move = Literal["L", "R", "S"]
+TapeAction = Annotated[
+    tuple[Symbol, Symbol, Move],
+    BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
+]
 
 
 class Transition(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     source: State = Field(alias="from")
-    read: list[Symbol]
+    tapes: list[TapeAction]
     to: State
-    write: list[Symbol]
-    move: list[Literal["L", "R", "S"]]
 
 
 class GroupedTransition(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     source: State | None = Field(default=None, alias="from")
-    read: list[Symbol]
+    tapes: list[TapeAction]
     to: State
-    write: list[Symbol]
-    move: list[Literal["L", "R", "S"]]
 
 
 GroupedTransitions = dict[State, list[GroupedTransition]]
@@ -101,7 +102,9 @@ class MachineDefinition(BaseModel):
             states=self.states, input_alphabet=self.input_alphabet,
             tape_alphabet=self.tape_alphabet, blank=self.blank,
             transitions={
-                (t.source, tuple(t.read)): (t.to, tuple(t.write), tuple(moves[m] for m in t.move))
+                (t.source, tuple(action[0] for action in t.tapes)): (
+                    t.to, tuple(action[1] for action in t.tapes),
+                    tuple(moves[action[2]] for action in t.tapes))
                 for t in self.transitions
             },
             start_state=self.start, accept_states=self.accept, reject_states=self.reject,
@@ -231,15 +234,13 @@ def parse_definition(source: str) -> tuple[MachineDefinition, list[Diagnostic]]:
                 issues.append(diagnostic(f"Unknown state {value!r}", (*path, field)))
         if transition.source in terminal:
             issues.append(diagnostic("Halting states cannot have outgoing transitions", (*path, "from")))
-        for field in ("read", "write", "move"):
-            values = getattr(transition, field)
-            if len(values) != definition.tapes:
-                issues.append(diagnostic(f"{field} needs {definition.tapes} entries", (*path, field)))
-            if field != "move":
-                for j, symbol in enumerate(values):
-                    if symbol not in symbols:
-                        issues.append(diagnostic(f"Unknown tape symbol {symbol!r}", (*path, field, j)))
-        key = (transition.source, tuple(transition.read))
+        if len(transition.tapes) != definition.tapes:
+            issues.append(diagnostic(f"tapes needs {definition.tapes} entries", (*path, "tapes")))
+        for j, (read, write, _move) in enumerate(transition.tapes):
+            for field, symbol in (("read", read), ("write", write)):
+                if symbol not in symbols:
+                    issues.append(diagnostic(f"Unknown tape symbol {symbol!r}", (*path, "tapes", j, field)))
+        key = (transition.source, tuple(action[0] for action in transition.tapes))
         if key in seen and definition.model == "deterministic":
             issues.append(diagnostic("Duplicate rule for this state and read tuple (nondeterministic)", path))
         seen.add(key)
