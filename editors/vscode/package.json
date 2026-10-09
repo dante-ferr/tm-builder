@@ -4,7 +4,7 @@
   "description": "Live type and semantic diagnostics for Teocomp machine YAML files",
   "version": "0.3.0",
   "publisher": "teocomp-local",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -47,7 +47,7 @@
     ]
   },
   "scripts": {
-    "package": "mkdir -p ../../dist && vsce package --out ../../dist/teocomp-vscode.vsix --allow-missing-repository --no-dependencies"
+    "package": "cp ../../LICENSE LICENSE && mkdir -p ../../dist && vsce package --out ../../dist/teocomp-vscode.vsix --allow-missing-repository --no-dependencies"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.0.0"

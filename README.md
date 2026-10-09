@@ -123,3 +123,5 @@ extension host checks. See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution c
 
 Simulation uses [multitape-tm](https://pypi.org/project/multitape-tm/); diagrams use
 [Graphviz via Viz.js](https://viz-js.com/api/).
+
+Licensed under [MIT](LICENSE).

@@ -12,6 +12,6 @@ reject: []
 
 # Read/write/move entries are ordered by tape: tape 1, tape 2, ...
 transitions:
-  - { from: copy, read: [_, _], to: copy, write: [a, a], move: [R, R] }
+  - { from: copy, read: [a, _], to: copy, write: [a, a], move: [R, R] }
   - { from: copy, read: [b, _], to: copy, write: [b, b], move: [R, R] }
   - { from: copy, read: [_, _], to: accept, write: [_, _], move: [S, S] }
