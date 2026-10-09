@@ -11,7 +11,8 @@ from teocomp.definition import DefinitionError, UniqueKeyLoader, parse_definitio
 
 def inspect_source(source: str) -> dict:
     # Keep completion available while the transition section is incomplete.
-    suggestions = {"states": [], "symbols": [], "moves": ["L", "R", "S"]}
+    suggestions = {"states": [], "symbols": [], "moves": ["L", "R", "S"],
+                   "models": ["deterministic", "nondeterministic"]}
     try:
         data = yaml.load(source, Loader=UniqueKeyLoader)
         if isinstance(data, dict):

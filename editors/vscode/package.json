@@ -2,7 +2,7 @@
   "name": "teocomp-machines",
   "displayName": "Teocomp Turing Machines",
   "description": "Live type and semantic diagnostics for Teocomp machine YAML files",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "teocomp-local",
   "license": "UNLICENSED",
   "engines": {"vscode": "^1.85.0"},

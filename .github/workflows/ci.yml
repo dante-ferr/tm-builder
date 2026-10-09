@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install Python dependencies
+        run: poetry install --no-interaction
+      - name: Build diagram tools and VS Code extension
+        run: |
+          npm ci
+          npm run build
+          npm run package:extension
+      - name: Verify generated machine schema
+        run: |
+          poetry run teocomp schema
+          git diff --exit-code -- schemas/machine.schema.json
+      - name: Validate every example machine
+        run: for machine in machines/*.yaml; do poetry run teocomp check "$machine"; done
+      - name: Run Python checks
+        run: poetry run python -m unittest discover -s tests -v

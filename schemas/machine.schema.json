@@ -62,6 +62,15 @@
       "title": "Name",
       "type": "string"
     },
+    "model": {
+      "default": "deterministic",
+      "enum": [
+        "deterministic",
+        "nondeterministic"
+      ],
+      "title": "Model",
+      "type": "string"
+    },
     "tapes": {
       "maximum": 32,
       "minimum": 1,

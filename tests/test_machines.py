@@ -8,6 +8,8 @@ from teocomp.diagram import machine_diagram
 from teocomp.simulation import simulate
 
 SOURCE = (Path(__file__).resolve().parents[1] / 'machines/copy.yaml').read_text()
+SINGLE = (Path(__file__).resolve().parents[1] / 'machines/single_tape.yaml').read_text()
+NONDETERMINISTIC = (Path(__file__).resolve().parents[1] / 'machines/nondeterministic_contains_one.yaml').read_text()
 
 
 class MachineTests(unittest.TestCase):
@@ -27,8 +29,37 @@ class MachineTests(unittest.TestCase):
             for tape in machine.tapes:
                 self.assertEqual(''.join(tape.cells.get(i, '_') for i in range(len(value))), value)
 
+    def test_single_tape_definition_runs(self):
+        definition, warnings = parse_definition(SINGLE)
+        self.assertEqual(definition.tapes, 1)
+        self.assertEqual(warnings, [])
+        for value, expected in [('101', 'ACCEPT'), ('0', 'REJECT'), ('', 'REJECT')]:
+            self.assertEqual(simulate(definition, [value])['status'], expected)
+
+    def test_nondeterministic_branches_accept_if_any_branch_accepts(self):
+        definition, warnings = parse_definition(NONDETERMINISTIC)
+        self.assertEqual(warnings, [])
+        self.assertEqual(definition.model, 'nondeterministic')
+        for value in ('1', '00100', '0001', '01011'):
+            result = simulate(definition, [value])
+            self.assertEqual(result['status'], 'ACCEPT')
+            self.assertEqual(result['frames'][-1]['state'], 'accept')
+        for value in ('', '0', '000'):
+            self.assertEqual(simulate(definition, [value])['status'], 'REJECT')
+        with self.assertRaisesRegex(ValueError, '[Nn]ondeterministic'):
+            definition.create_machine()
+
+    def test_nondeterministic_depth_limit_reports_running(self):
+        definition, _ = parse_definition(NONDETERMINISTIC)
+        result = simulate(definition, ['00100'], max_steps=1)
+        self.assertEqual(result['status'], 'RUNNING')
+
     def test_duplicate_rules_do_not_silently_override(self):
         self.assert_invalid(SOURCE + '  - {from: copy, read: [a, _], to: accept, write: [a, a], move: [S, S]}\n', 'Duplicate rule')
+
+    def test_nondeterministic_rules_with_same_read_tuple_are_valid(self):
+        self.assertEqual(parse_definition(NONDETERMINISTIC)[0].model, 'nondeterministic')
+        self.assert_invalid(NONDETERMINISTIC.replace('model: nondeterministic', 'model: deterministic'), 'Duplicate rule')
 
     def test_duplicate_yaml_keys(self):
         self.assert_invalid(SOURCE + 'tapes: 3\n', 'Duplicate key')

@@ -26,6 +26,7 @@ class Transition(BaseModel):
 class MachineDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     name: str = "Turing machine"
+    model: Literal["deterministic", "nondeterministic"] = "deterministic"
     tapes: int = Field(ge=1, le=32)
     blank: Symbol = "_"
     input_alphabet: list[Symbol]
@@ -38,6 +39,8 @@ class MachineDefinition(BaseModel):
     transitions: list[Transition]
 
     def create_machine(self, inputs: list[str] | None = None) -> MultiTapeTuringMachine:
+        if self.model != "deterministic":
+            raise ValueError("Nondeterministic machines run with teocomp simulation, not as a single mtm machine.")
         chosen = inputs if inputs is not None else self.inputs
         if chosen is None:
             chosen = [""] * self.tapes
@@ -164,7 +167,7 @@ def parse_definition(source: str) -> tuple[MachineDefinition, list[Diagnostic]]:
                     if symbol not in symbols:
                         issues.append(diagnostic(f"Unknown tape symbol {symbol!r}", (*path, field, j)))
         key = (transition.source, tuple(transition.read))
-        if key in seen:
+        if key in seen and definition.model == "deterministic":
             issues.append(diagnostic("Duplicate rule for this state and read tuple (nondeterministic)", path))
         seen.add(key)
     if issues:

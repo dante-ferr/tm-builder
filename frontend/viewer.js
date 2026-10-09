@@ -34,7 +34,7 @@ async function refresh() {
     $('graph').replaceChildren(svg);
     $('graph').classList.remove('stale');
     $('title').textContent = result.name;
-    $('status').textContent = `${result.mode} · Live preview`;
+    $('status').textContent = `${result.model || 'deterministic'} · ${result.mode} · Live preview`;
     $('download').disabled = false;
     revision = result.revision;
     fit();

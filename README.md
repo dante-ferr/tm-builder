@@ -3,6 +3,10 @@
 Write multi-tape machines as YAML in VS Code, get type and semantic diagnostics
 as you type, and keep a live diagram open beside your editor.
 
+The examples include a deterministic single-tape recognizer, a deterministic
+two-tape copier, and a nondeterministic recognizer. Set the tape count to use one
+or several tapes; each tape currently extends infinitely in both directions.
+
 ## VS Code setup
 
 Open this project root in VS Code. The local **Teocomp Turing Machines** extension
@@ -109,7 +113,43 @@ simulation remains available:
 ```bash
 poetry run teocomp check machines/copy.yaml
 poetry run teocomp run machines/copy.yaml --input abba "" --max-steps 1000
+poetry run teocomp check machines/single_tape.yaml
+poetry run teocomp run machines/nondeterministic_contains_one.yaml --input 00100
 ```
+
+## Turing machine variants
+
+These are model choices and features that can overlap; for example, a machine may
+be both nondeterministic and multi-tape.
+
+| Variant | In this project | What it means |
+| --- | --- | --- |
+| Deterministic, single-tape | Yes | One move is defined for each state and symbol. Set `tapes: 1`. |
+| Deterministic, multi-tape | Yes | Each transition reads, writes, and moves one head per tape. |
+| Nondeterministic | Yes | A transition can have multiple choices. The machine accepts if any computation branch accepts. |
+| Two-way-infinite tape | Yes | Each tape head can move left and right without hitting an end. |
+| Multi-track | Future extension | Each cell holds several aligned symbols under one head. |
+| Multi-head | Future extension | Several independently moving heads share one tape. |
+| Semi-infinite tape | Future extension | A left boundary prevents the head from moving farther left. |
+| Multidimensional tape | Future extension | Tape cells form a grid or higher-dimensional space. |
+| Universal TM / enumerator | Separate constructions | These simulate encoded machines or produce strings; they are built using a TM. |
+
+The nondeterministic example accepts exactly the binary strings that contain a
+`1`. It guesses when to switch from searching to checking, and accepts if a branch
+reaches the blank after finding a `1`. Its trace shows one accepting branch. The
+simulator explores branches breadth-first with a depth limit of 1,000 and a
+10,000-configuration limit; reaching a limit returns `RUNNING`, not rejection.
+Increase the depth limit when you want it to search further:
+
+```bash
+poetry run teocomp run machines/nondeterministic_contains_one.yaml \
+  --input 00100 --max-steps 5000
+```
+
+The parser defaults to `model: deterministic`. Use
+`model: nondeterministic` to allow multiple rules with the same state and read
+tuple. Reject states stop a branch. If every branch halts without accepting, the
+machine returns `REJECT`.
 
 ## Development
 
