@@ -1,4 +1,4 @@
-"""A diagram-only viewer for a local YAML file and VS Code's live buffer."""
+"""Live diagrams and bounded execution playback for local machines."""
 
 from dataclasses import asdict
 from hashlib import sha256
@@ -14,6 +14,8 @@ import webbrowser
 
 from teocomp.definition import DefinitionError, parse_definition
 from teocomp.diagram import machine_diagram
+from teocomp.inputs import parse_inputs
+from teocomp.simulation import simulate
 
 PROJECT = Path(__file__).resolve().parents[3]
 WEB_PROJECT = PROJECT / 'web'
@@ -41,8 +43,9 @@ class DiagramSource:
         self.path = path.resolve()
         self.buffer = None
         self.buffer_time = 0
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.cache = None
+        self.definition = None
 
     def update_buffer(self, path: str, source: str) -> bool:
         if Path(path).resolve() != self.path:
@@ -54,8 +57,11 @@ class DiagramSource:
 
     def snapshot(self):
         with self.lock:
-            live = self.buffer is not None and time.monotonic() - self.buffer_time < 3
-            source = self.buffer if live else None
+            return self._snapshot()
+
+    def _snapshot(self):
+        live = self.buffer is not None and time.monotonic() - self.buffer_time < 3
+        source = self.buffer if live else None
         try:
             saved = self.path.read_text()
             if source is None:
@@ -72,12 +78,28 @@ class DiagramSource:
         result = {'path': str(self.path), 'filename': self.path.stem, 'revision': revision, 'mode': mode}
         try:
             definition, warnings = parse_definition(source)
+            self.definition = definition
             result.update(valid=True, name=definition.name, dot=machine_diagram(definition).source,
+                          model=definition.model, tapes=definition.tapes, states=definition.states,
                           diagnostics=[asdict(d) for d in warnings])
         except DefinitionError as error:
             result.update(valid=False, diagnostics=[asdict(d) for d in error.diagnostics])
         self.cache = result
         return result
+
+    def simulation(self, data):
+        with self.lock:
+            current = self.snapshot()
+            if not current['valid']:
+                raise ValueError('Fix the machine diagnostics before running.')
+            if data.get('revision') != current['revision']:
+                raise ValueError('Machine changed; reload the trace.')
+            setup_text = data.get('setup', 'tapes: []')
+            if not isinstance(setup_text, str):
+                raise ValueError('Expected starting tape YAML as a string.')
+            setup = parse_inputs(setup_text, self.definition)
+            result = simulate(self.definition, max_steps=data.get('max_steps', 1000), setup=setup)
+            return {**result, 'revision': current['revision'], 'model': self.definition.model}
 
 
 def serve(machine_path: Path, port=8765, open_browser=True):
@@ -127,7 +149,7 @@ def serve(machine_path: Path, port=8765, open_browser=True):
         def do_POST(self):
             if not self.local_request():
                 return
-            if self.path != '/api/buffer':
+            if self.path not in ('/api/buffer', '/api/simulate'):
                 self.respond({'error': 'Not found'}, 404)
                 return
             try:
@@ -135,7 +157,12 @@ def serve(machine_path: Path, port=8765, open_browser=True):
                 if self.headers.get('Content-Type', '').split(';')[0] != 'application/json' or not 0 < size <= 2_000_000:
                     raise ValueError('Expected a JSON body of at most 2 MB')
                 data = json.loads(self.rfile.read(size))
-                if not isinstance(data, dict) or not isinstance(data.get('source'), str) or not isinstance(data.get('path'), str):
+                if not isinstance(data, dict):
+                    raise ValueError('Expected a JSON object')
+                if self.path == '/api/simulate':
+                    self.respond(source.simulation(data))
+                    return
+                if not isinstance(data.get('source'), str) or not isinstance(data.get('path'), str):
                     raise ValueError('Expected path and source strings')
                 self.respond({'matched': source.update_buffer(data['path'], data['source'])})
             except (ValueError, OSError) as error:

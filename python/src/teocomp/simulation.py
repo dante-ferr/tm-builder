@@ -7,12 +7,26 @@ from mtm.tape import Tape
 from teocomp.definition import MachineDefinition
 
 
+def _rule(transition, index):
+    return {"index": index, "source": transition.source, "to": transition.to,
+            "tapes": [list(action) for action in transition.tapes]}
+
+
+def _reason(status, nondeterministic=False):
+    return {"ACCEPT": "An accepting state was reached.",
+            "REJECT": "The search was exhausted without an accepting branch." if nondeterministic else "A rejecting state was reached.",
+            "HALT": "No transition matches the current state and symbols.",
+            "RUNNING": "Execution stopped at the step or configuration limit."}[status]
+
+
 def simulate(definition: MachineDefinition, inputs=None, max_steps=1000, *, setup=None):
     if type(max_steps) is not int or not 1 <= max_steps <= 10000:
         raise ValueError("max_steps must be an integer between 1 and 10000.")
     if definition.model == "nondeterministic":
         return _simulate_nondeterministic(definition, inputs, max_steps, setup=setup)
     machine = definition.create_machine(inputs, setup=setup)
+    rules = {(transition.source, tuple(action[0] for action in transition.tapes)): (index, transition)
+             for index, transition in enumerate(definition.transitions)}
 
     def snapshot():
         tapes = []
@@ -26,11 +40,15 @@ def simulate(definition: MachineDefinition, inputs=None, max_steps=1000, *, setu
     status = "ACCEPT" if machine.current_state in machine.accept_states else (
         "REJECT" if machine.current_state in machine.reject_states else "RUNNING")
     while status == "RUNNING" and machine.step_count < max_steps:
+        selected = rules.get((machine.current_state, tuple(tape.read() for tape in machine.tapes)))
         before = machine.step_count
         status = machine.step()
         if machine.step_count != before:
-            frames.append(snapshot())
-    return {"status": status, "frames": frames, "configuration": machine.get_configuration()}
+            frame = snapshot()
+            frame["transition"] = _rule(selected[1], selected[0])
+            frames.append(frame)
+    return {"status": status, "reason": _reason(status), "frames": frames,
+            "configuration": machine.get_configuration()}
 
 
 def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations=10000, *, setup=None):
@@ -57,12 +75,22 @@ def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations
 
     moves = {"L": -1, "R": 1, "S": 0}
     tapes = prepared if prepared is not None else [Tape(definition.blank, text) for text in chosen]
-    records = [{"state": definition.start, "tapes": tapes, "step": 0, "parent": None}]
+    records = [{"state": definition.start, "tapes": tapes, "step": 0, "parent": None, "transition": None}]
     queue = deque([0])
     seen = set()
-    terminal_states = set(definition.accept) | set(definition.reject)
     leaf = 0
     exhausted = True
+
+    def path_to(record_id):
+        path = []
+        while record_id is not None:
+            record = records[record_id]
+            frame = snapshot(record["state"], record["tapes"], record["step"])
+            if record["transition"] is not None:
+                frame["transition"] = record["transition"]
+            path.append(frame)
+            record_id = record["parent"]
+        return list(reversed(path))
 
     while queue:
         record_id = queue.popleft()
@@ -70,16 +98,11 @@ def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations
         state, current_tapes, step_count = current["state"], current["tapes"], current["step"]
         leaf = record_id
         if state in definition.accept:
-            path = []
-            while record_id is not None:
-                record = records[record_id]
-                path.append(snapshot(record["state"], record["tapes"], record["step"]))
-                record_id = record["parent"]
-            path.reverse()
+            path = path_to(record_id)
             last = path[-1]
             configuration = {"state": last["state"], "step": last["step"],
                              "tapes": [str(tape) for tape in current_tapes]}
-            return {"status": "ACCEPT", "frames": path, "configuration": configuration}
+            return {"status": "ACCEPT", "reason": _reason("ACCEPT", True), "frames": path, "configuration": configuration}
         if state in definition.reject:
             continue
 
@@ -87,7 +110,7 @@ def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations
         if signature in seen:
             continue
         seen.add(signature)
-        options = [transition for transition in definition.transitions
+        options = [(index, transition) for index, transition in enumerate(definition.transitions)
                    if transition.source == state
                    and tuple(tape.read() for tape in current_tapes)
                    == tuple(action[0] for action in transition.tapes)]
@@ -96,7 +119,7 @@ def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations
         if step_count >= max_steps:
             exhausted = False
             continue
-        for transition in options:
+        for index, transition in options:
             if len(transition.tapes) != definition.tapes:
                 continue
             if len(records) >= max_configurations:
@@ -111,12 +134,13 @@ def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations
                 clone.move(moves[direction])
                 next_tapes.append(clone)
             records.append({"state": transition.to, "tapes": next_tapes,
-                            "step": step_count + 1, "parent": record_id})
+                            "step": step_count + 1, "parent": record_id,
+                            "transition": _rule(transition, index)})
             queue.append(len(records) - 1)
 
     chosen_leaf = records[leaf]
-    final_snapshot = snapshot(chosen_leaf["state"], chosen_leaf["tapes"], chosen_leaf["step"])
     status = "REJECT" if exhausted else "RUNNING"
     configuration = {"state": chosen_leaf["state"], "step": chosen_leaf["step"],
                      "tapes": [str(tape) for tape in chosen_leaf["tapes"]]}
-    return {"status": status, "frames": [final_snapshot], "configuration": configuration}
+    return {"status": status, "reason": _reason(status, True),
+            "frames": path_to(leaf), "configuration": configuration}

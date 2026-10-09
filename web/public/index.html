@@ -2,12 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Teocomp · Diagram</title><link rel="stylesheet" href="/style.css">
+<title>Teocomp · Machine debugger</title><link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header><div><h1 id="title">Machine diagram</h1><div id="path"></div></div>
 <div class="tools"><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button><button id="download" disabled>Download SVG</button></div></header>
 <main id="graph" aria-label="Rendered machine diagram"></main>
+<section id="debugger" aria-label="Machine debugger">
+  <details open id="setup-panel"><summary>Starting tapes</summary>
+    <div class="setup-grid"><label>Setup YAML <textarea id="setup" spellcheck="false" rows="4">tapes: []</textarea></label>
+    <div><label>Load an input setup <input id="setup-file" type="file" accept=".yaml,.yml"></label>
+    <p>Use contents, origin, and head from the input setup format. Omitted tapes start blank.</p>
+    <label>Maximum steps <input id="max-steps" type="number" min="1" max="10000" value="1000"></label>
+    <button id="run" disabled>Load trace</button></div></div>
+  </details>
+  <div class="controls">
+    <button id="reset" disabled>Reset</button><button id="back" disabled>← Back</button>
+    <button id="play" disabled>Play</button><button id="next" disabled>Step →</button>
+    <label>Speed <select id="speed"><option value="1">1 step/s</option><option value="2" selected>2 steps/s</option><option value="5">5 steps/s</option></select></label>
+    <label>Break on state <input id="break-state" placeholder="State name" list="states"></label>
+    <datalist id="states"></datalist>
+    <label>Break before rule <input id="break-rule" type="number" min="1" placeholder="Rule number"></label>
+  </div>
+  <label class="timeline">Timeline <input id="timeline" type="range" min="0" max="0" value="0" disabled></label>
+  <div id="execution" role="status">Load a trace to inspect the tapes.</div>
+  <div id="trace-note"></div><div id="tapes"></div>
+  <pre id="rule-details">No transition selected.</pre>
+</section>
 <footer><span id="status" role="status">Loading…</span><span>Edges: read → write, move · | separates tapes</span></footer>
 <script type="module" src="/assets/viewer.js"></script>
 </body></html>

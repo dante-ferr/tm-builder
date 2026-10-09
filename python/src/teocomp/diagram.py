@@ -25,5 +25,6 @@ def machine_diagram(definition: MachineDefinition) -> Digraph:
         per_tape = [f"{r} → {w}, {m}" for r, w, m in t.tapes]
         edges[t.source, t.to].append(" | ".join(per_tape))
     for (source, target), labels in edges.items():
-        graph.edge(identifiers[source], identifiers[target], label=escape("\n".join(labels)))
+        graph.edge(identifiers[source], identifiers[target], label=escape("\n".join(labels)),
+                   id=f"edge_{definition.states.index(source)}_{definition.states.index(target)}")
     return graph

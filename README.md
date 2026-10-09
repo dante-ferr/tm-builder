@@ -22,7 +22,7 @@ interpreter.
 
 | Command | Action |
 | --- | --- |
-| `make view` | Open the live diagram and SVG download |
+| `make view` | Open the live diagram, tape debugger, and SVG download |
 | `make check` | Validate a machine |
 | `make run INPUTS=inputs/copy.yaml` | Execute with a starting tape setup |
 | `make run` | Execute with blank tapes |
@@ -42,6 +42,21 @@ make run ARGS='--input abba ""'
 The viewer follows saved changes and unsaved VS Code edits. It keeps the last
 valid diagram visible while errors are fixed. For a custom port, set
 `teocomp.previewPort` to match `PORT`.
+
+## Animated debugging
+
+Run `make view`, expand **Starting tapes**, and paste setup YAML or load a file
+such as `inputs/copy.yaml`. Choose a maximum step count and click **Load trace**.
+Use **Step**, **Back**, **Reset**, or the timeline to inspect configurations;
+**Play** animates reading, writing, head movement, and entering the next state.
+The diagram highlights the active state and the applied rule's edge. Rule details
+show the exact transition when several rules share an edge.
+
+Set a state breakpoint or a rule number (starting at 1) to pause playback.
+**Play** resumes past the current breakpoint. Machine edits invalidate the trace;
+load it again after fixing diagnostics. A step limit leaves the result `RUNNING`.
+Nondeterministic playback shows one accepting path, or the last explored path;
+the final status describes the whole bounded search, not just the displayed path.
 
 ## Machine definitions
 
