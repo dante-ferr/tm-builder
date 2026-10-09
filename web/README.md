@@ -1,12 +1,20 @@
-# Teocomp web interface
+# tm-builder web interface
 
-`src/viewer.js` displays live diagrams and recorded tape playback; `src/render.js` renders SVG from DOT for
-the Python exporter. Both use the same Viz.js Graphviz WebAssembly dependency.
-Static HTML and CSS are in `public/`; generated bundles are in `public/assets/`.
+The interface uses the Next.js App Router. Routes and the root layout are in
+`app/`; reusable workspace JSX lives in `src/components/`. The client workspace
+mounts the existing controller from `src/viewer.js` in an effect and calls its
+cleanup when the component unmounts. `src/render.js` remains the Node-side SVG
+renderer used by the Python exporter; the build bundles it to
+`public/assets/render.cjs`.
 
-Run `npm ci` and `npm run build` inside this folder, or `make build` from the
-workspace root. The Python server serves `public/` and provides the diagram API.
-Start it with `make view` from the workspace root.
+Use Node.js 20.9 or newer. Run `npm ci` and `npm run dev` here to start Next on
+port 3000. Start the Python API separately with
+`TM_BUILDER_DEV_ORIGIN=http://127.0.0.1:3000 make view` (default port 8765);
+Next proxies `/api` requests to it. Set `TM_BUILDER_API_ORIGIN` to change the API
+origin during development. Open `http://127.0.0.1:3000` so the browser origin
+matches `TM_BUILDER_DEV_ORIGIN`. `npm run build` creates a static App Router export
+in `out/`; `make build` runs this build from the project root. The Python server
+serves the exported site and API when started with `make view`.
 
 The viewer posts starting tape YAML, a step limit, and the diagram revision to
 `/api/simulate`. Stale revisions are rejected so traces always match the displayed

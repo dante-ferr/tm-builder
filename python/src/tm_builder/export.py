@@ -4,9 +4,9 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from teocomp.definition import MachineDefinition
-from teocomp.designer import WEB, ensure_assets
-from teocomp.diagram import machine_diagram
+from tm_builder.definition import MachineDefinition
+from tm_builder.designer import WEB, ensure_assets
+from tm_builder.diagram import machine_diagram
 
 
 def export_diagram(definition: MachineDefinition, target: Path):

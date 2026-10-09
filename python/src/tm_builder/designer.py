@@ -4,26 +4,29 @@ from dataclasses import asdict
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import mimetypes
+import os
 from pathlib import Path
 import shutil
 import subprocess
 import threading
 import time
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 import webbrowser
 
-from teocomp.definition import DefinitionError, parse_definition
-from teocomp.diagram import machine_diagram
-from teocomp.inputs import parse_inputs
-from teocomp.simulation import simulate
+from tm_builder.definition import DefinitionError, parse_definition
+from tm_builder.diagram import machine_diagram
+from tm_builder.inputs import parse_inputs
+from tm_builder.simulation import simulate
 
 PROJECT = Path(__file__).resolve().parents[3]
 WEB_PROJECT = PROJECT / 'web'
 WEB = WEB_PROJECT / 'public'
+WEB_OUT = WEB_PROJECT / 'out'
 
 
 def ensure_assets():
-    if all((WEB / f'assets/{name}').exists() for name in ('viewer.js', 'render.cjs')):
+    if (WEB_OUT / 'index.html').is_file() and (WEB / 'assets/render.cjs').is_file():
         return
     npm = shutil.which('npm')
     if not npm:
@@ -138,7 +141,7 @@ class DiagramSource:
             return {**result, 'revision': current['revision'], 'model': self.definition.model}
 
     def export(self, data):
-        from teocomp.web_export import export_download
+        from tm_builder.web_export import export_download
         if 'source' in data:
             if not isinstance(data['source'], str) or not isinstance(data.get('filename'), str):
                 raise ValueError('Expected imported machine YAML and a filename.')
@@ -180,7 +183,11 @@ def create_server(machine_path: Path | None = None, port=8765):
 
         def local_request(self):
             host = f'127.0.0.1:{self.server.server_port}'
-            if self.headers.get('Host') != host or self.headers.get('Origin', f'http://{host}') != f'http://{host}':
+            allowed_origins = {f'http://{host}'}
+            dev_origin = os.environ.get('TM_BUILDER_DEV_ORIGIN')
+            if dev_origin:
+                allowed_origins.add(dev_origin)
+            if self.headers.get('Host') != host or self.headers.get('Origin', f'http://{host}') not in allowed_origins:
                 self.respond({'error': 'Invalid host or origin'}, 403)
                 return False
             return True
@@ -197,14 +204,52 @@ def create_server(machine_path: Path | None = None, port=8765):
                     self.respond({'source': library_path('inputs', filename).read_text()})
                 elif route == '/api/diagram':
                     self.respond(source.snapshot())
-                elif route in ('/', '/style.css', '/assets/viewer.js', '/assets/viewer.js.LEGAL.txt'):
-                    relative = 'index.html' if route == '/' else route.lstrip('/')
-                    mime = 'text/html' if relative.endswith('html') else 'text/css' if relative.endswith('css') else 'text/javascript' if relative.endswith('js') else 'text/plain'
-                    self.respond((WEB / relative).read_bytes(), mime=mime + '; charset=utf-8')
                 else:
-                    self.respond({'error': 'Not found'}, 404)
+                    self.serve_static(route)
             except (OSError, ValueError, RecursionError) as error:
                 self.respond({'error': str(error)}, 400)
+
+        def serve_static(self, route):
+            """Serve files from the Next.js static export without exposing workspace files."""
+            root = WEB_OUT.resolve()
+            requested = unquote(route).lstrip('/')
+            if not requested:
+                requested = 'index.html'
+            def confined(path):
+                resolved = path.resolve()
+                try:
+                    resolved.relative_to(root)
+                except ValueError:
+                    return None
+                return resolved
+
+            path = confined(root / requested)
+            if path is None:
+                self.respond({'error': 'Not found'}, 404)
+                return
+
+            # Next exports routes as either route.html or route/index.html.
+            if path.is_dir():
+                path = confined(path / 'index.html')
+                if path is None:
+                    self.respond({'error': 'Not found'}, 404)
+                    return
+            if not path.is_file() and not Path(requested).suffix:
+                html_path = path.with_suffix('.html')
+                if html_path.is_file():
+                    path = confined(html_path)
+                    if path is None:
+                        self.respond({'error': 'Not found'}, 404)
+                        return
+            if not path.is_file():
+                self.respond({'error': 'Not found'}, 404)
+                return
+
+            mime, _encoding = mimetypes.guess_type(path.name)
+            mime = mime or 'application/octet-stream'
+            if mime.startswith('text/') or mime in ('application/javascript', 'application/json', 'image/svg+xml'):
+                mime += '; charset=utf-8'
+            self.respond(path.read_bytes(), mime=mime)
 
         def do_POST(self):
             if not self.local_request():

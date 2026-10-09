@@ -1,9 +1,9 @@
 {
-  "name": "teocomp-machines",
-  "displayName": "Teocomp Turing Machines",
-  "description": "Live type and semantic diagnostics for Teocomp machine YAML files",
+  "name": "tm-builder-machines",
+  "displayName": "tm-builder Turing Machines",
+  "description": "Live type and semantic diagnostics for tm-builder machine YAML files",
   "version": "0.3.0",
-  "publisher": "teocomp-local",
+  "publisher": "tm-builder-local",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -23,14 +23,14 @@
   },
   "contributes": {
     "configuration": {
-      "title": "Teocomp",
+      "title": "tm-builder",
       "properties": {
-        "teocomp.pythonPath": {
+        "tm-builder.pythonPath": {
           "type": "string",
           "default": "",
-          "description": "Python interpreter containing teocomp; empty uses this workspace's python/.venv."
+          "description": "Python interpreter containing tm-builder; empty uses this workspace's python/.venv."
         },
-        "teocomp.previewPort": {
+        "tm-builder.previewPort": {
           "type": "integer",
           "default": 8765,
           "minimum": 1,
@@ -41,13 +41,13 @@
     },
     "commands": [
       {
-        "command": "teocomp.preview",
-        "title": "Teocomp: Preview Machine Diagram"
+        "command": "tm-builder.preview",
+        "title": "tm-builder: Preview Machine Diagram"
       }
     ]
   },
   "scripts": {
-    "package": "cp ../../LICENSE LICENSE && mkdir -p ../../dist && vsce package --out ../../dist/teocomp-vscode.vsix --allow-missing-repository --no-dependencies"
+    "package": "cp ../../LICENSE LICENSE && mkdir -p ../../dist && vsce package --out ../../dist/tm-builder-vscode.vsix --allow-missing-repository --no-dependencies"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.0.0"

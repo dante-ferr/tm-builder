@@ -10,7 +10,7 @@ import zipfile
 
 import yaml
 
-from teocomp.definition import MachineDefinition
+from tm_builder.definition import MachineDefinition
 
 
 def export_download(definition: MachineDefinition, filename: str, options: dict, project: Path):
@@ -30,7 +30,7 @@ def export_download(definition: MachineDefinition, filename: str, options: dict,
     if not make:
         raise RuntimeError('Install make to export tables from the viewer.')
     extension = 'png' if format == 'image' else format
-    with tempfile.TemporaryDirectory(prefix='teocomp-download-') as directory:
+    with tempfile.TemporaryDirectory(prefix='tm-builder-download-') as directory:
         work = Path(directory)
         machine = work / 'machine.yaml'
         machine.write_text(yaml.safe_dump(definition.model_dump(by_alias=True, exclude_none=True),

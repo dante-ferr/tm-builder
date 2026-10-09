@@ -6,7 +6,7 @@ import sys
 
 import yaml
 
-from teocomp.definition import DefinitionError, UniqueKeyLoader, parse_definition
+from tm_builder.definition import DefinitionError, UniqueKeyLoader, parse_definition
 
 
 def inspect_source(source: str) -> dict:

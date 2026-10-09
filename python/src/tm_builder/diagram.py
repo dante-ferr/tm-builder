@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from graphviz import Digraph, escape
 
-from teocomp.definition import MachineDefinition
+from tm_builder.definition import MachineDefinition
 
 
 def machine_diagram(definition: MachineDefinition) -> Digraph:

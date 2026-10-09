@@ -4,7 +4,7 @@ from collections import deque
 
 from mtm.tape import Tape
 
-from teocomp.definition import MachineDefinition
+from tm_builder.definition import MachineDefinition
 
 
 def _rule(transition, index):

@@ -4,15 +4,15 @@ const http = require('node:http');
 const path = require('node:path');
 
 function activate(context) {
-  const diagnostics = vscode.languages.createDiagnosticCollection('teocomp');
-  const output = vscode.window.createOutputChannel('Teocomp');
+  const diagnostics = vscode.languages.createDiagnosticCollection('tm-builder');
+  const output = vscode.window.createOutputChannel('tm-builder');
   const jobs = new Map(), timers = new Map(), completions = new Map();
   const previewBuffers = new Map();
   const scope = document => document.uri.scheme === 'file' &&
     /\.(yaml|yml)$/i.test(document.fileName) &&
     document.fileName.split(path.sep).includes('machines') &&
     vscode.workspace.getWorkspaceFolder(document.uri);
-  const config = uri => vscode.workspace.getConfiguration('teocomp', uri);
+  const config = uri => vscode.workspace.getConfiguration('tm-builder', uri);
   function interpreter(document) {
     const root = vscode.workspace.getWorkspaceFolder(document.uri).uri.fsPath;
     const configured = config(document.uri).get('pythonPath');
@@ -45,7 +45,7 @@ function activate(context) {
     preview(document);
     const root = vscode.workspace.getWorkspaceFolder(document.uri).uri.fsPath;
     const python = interpreter(document);
-    const child = spawn(python, ['-m', 'teocomp.ide'], {cwd: root, stdio: ['pipe', 'pipe', 'pipe']});
+    const child = spawn(python, ['-m', 'tm_builder.ide'], {cwd: root, stdio: ['pipe', 'pipe', 'pipe']});
     jobs.set(key, child);
     let stdout = '', stderr = '';
     child.stdout.on('data', chunk => stdout += chunk);
@@ -57,8 +57,8 @@ function activate(context) {
       output.appendLine(`Cannot start validator: ${error.message}. Run make setup in the workspace root.`);
       if (!document.isClosed && document.version === version) {
         const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1),
-          'Teocomp validator unavailable. Run make setup; see the Teocomp output channel.', vscode.DiagnosticSeverity.Error);
-        diagnostic.source = 'teocomp'; diagnostics.set(document.uri, [diagnostic]);
+          'tm-builder validator unavailable. Run make setup; see the tm-builder output channel.', vscode.DiagnosticSeverity.Error);
+        diagnostic.source = 'tm-builder'; diagnostics.set(document.uri, [diagnostic]);
       }
     });
     child.on('close', code => {
@@ -81,14 +81,14 @@ function activate(context) {
           const range = new vscode.Range(line.lineNumber, start, line.lineNumber, Math.min(line.text.length, start + 1));
           const diagnostic = new vscode.Diagnostic(range, item.message,
             item.severity === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error);
-          diagnostic.source = 'teocomp'; return diagnostic;
+          diagnostic.source = 'tm-builder'; return diagnostic;
         }));
       } catch (error) {
         output.appendLine(`Validation failed (${python}): ${error.message}`);
         const detail = error.message.trim().split('\n').at(-1);
         const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1),
-          `Teocomp validation failed: ${detail}. Interpreter: ${python}. See the Teocomp output channel.`, vscode.DiagnosticSeverity.Error);
-        diagnostic.source = 'teocomp'; diagnostics.set(document.uri, [diagnostic]);
+          `tm-builder validation failed: ${detail}. Interpreter: ${python}. See the tm-builder output channel.`, vscode.DiagnosticSeverity.Error);
+        diagnostic.source = 'tm-builder'; diagnostics.set(document.uri, [diagnostic]);
       }
     });
     child.stdin.end(JSON.stringify({source: document.getText()}));
@@ -122,12 +122,12 @@ function activate(context) {
         });
       }
     }),
-    vscode.commands.registerCommand('teocomp.preview', () => {
+    vscode.commands.registerCommand('tm-builder.preview', () => {
       const document = vscode.window.activeTextEditor?.document;
       if (!document || !scope(document)) return vscode.window.showInformationMessage('Open a machine YAML file under machines/.');
-      const terminal = vscode.window.createTerminal('Teocomp diagram');
+      const terminal = vscode.window.createTerminal('tm-builder diagram');
       const quote = value => process.platform === 'win32' ? `"${value.replaceAll('"', '\\"')}"` : `'${value.replaceAll("'", "'\\''")}'`;
-      terminal.sendText(`${quote(interpreter(document))} -m teocomp.cli design ${quote(document.fileName)} --port ${config(document.uri).get('previewPort', 8765)}`);
+      terminal.sendText(`${quote(interpreter(document))} -m tm_builder.cli design ${quote(document.fileName)} --port ${config(document.uri).get('previewPort', 8765)}`);
       terminal.show();
     }),
     {dispose() { for (const timer of timers.values()) clearTimeout(timer); for (const job of jobs.values()) job.kill(); }}

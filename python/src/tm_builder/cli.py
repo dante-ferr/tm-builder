@@ -4,13 +4,13 @@ import argparse
 import json
 from pathlib import Path
 
-from teocomp.definition import DefinitionError, MachineDefinition, parse_definition
-from teocomp.simulation import simulate
-from teocomp.inputs import InputDefinition, parse_inputs
+from tm_builder.definition import DefinitionError, MachineDefinition, parse_definition
+from tm_builder.simulation import simulate
+from tm_builder.inputs import InputDefinition, parse_inputs
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Design multi-tape Turing machines.")
+    parser = argparse.ArgumentParser(prog="tm-builder", description="Design multi-tape Turing machines.")
     commands = parser.add_subparsers(dest="command")
     design = commands.add_parser("design", aliases=["view"], help="Open the machine picker and live diagram")
     design.add_argument("machine", nargs="?", type=Path)
@@ -43,7 +43,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command in (None, "design", "view"):
-            from teocomp.designer import serve
+            from tm_builder.designer import serve
             serve(getattr(args, "machine", None),
                   getattr(args, "port", 8765), not getattr(args, "no_open", False))
         elif args.command == "schema":
@@ -71,10 +71,10 @@ def main() -> None:
                 print(f"Status: {result['status']}")
                 print(json.dumps(result["configuration"], indent=2))
             elif args.command == "graph":
-                from teocomp.export import export_diagram
+                from tm_builder.export import export_diagram
                 print(export_diagram(definition, Path(args.output)))
             elif args.command == "table":
-                from teocomp.table import export_table
+                from tm_builder.table import export_table
                 format = args.format or (None if args.output else "image")
                 extension = "png" if format == "image" else format
                 output = Path(args.output or f"output/{Path(args.machine).stem}-{args.style}.{extension}")

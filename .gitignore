@@ -27,3 +27,7 @@ web/public/assets/
 !/inputs/copy.yaml
 !/inputs/binary.yaml
 !/inputs/copy_preloaded.yaml
+
+# Next.js build output
+/web/.next/
+/web/out/

@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import tempfile
 
-from teocomp.definition import MachineDefinition
+from tm_builder.definition import MachineDefinition
 
 _ESCAPES = {
     '\\': r'\textbackslash{}', '{': r'\{', '}': r'\}',
@@ -240,7 +240,7 @@ def export_table(definition: MachineDefinition, target: Path, *, format=None,
         outputs.append(target)
         if not split_a4:
             return outputs
-    with tempfile.TemporaryDirectory(prefix='teocomp-table-') as directory:
+    with tempfile.TemporaryDirectory(prefix='tm-builder-table-') as directory:
         if style == 'formal' or format == 'tex':
             images = _latex_images(definition, Path(directory), style, layout, dpi)
         else:

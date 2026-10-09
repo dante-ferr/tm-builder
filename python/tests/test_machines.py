@@ -5,9 +5,9 @@ import unittest
 
 import yaml
 
-from teocomp.definition import DefinitionError, parse_definition
-from teocomp.diagram import machine_diagram
-from teocomp.simulation import simulate
+from tm_builder.definition import DefinitionError, parse_definition
+from tm_builder.diagram import machine_diagram
+from tm_builder.simulation import simulate
 
 SOURCE = (Path(__file__).resolve().parent / 'fixtures/machines/copy.yaml').read_text()
 SINGLE = (Path(__file__).resolve().parent / 'fixtures/machines/single_tape.yaml').read_text()

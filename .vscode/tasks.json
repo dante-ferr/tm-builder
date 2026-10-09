@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Teocomp: Export active machine SVG",
+      "label": "tm-builder: Export active machine SVG",
       "type": "process",
       "command": "make",
       "args": ["graph", "MACHINE=${file}", "OUTPUT=${workspaceFolder}/output/${fileBasenameNoExtension}.svg"],

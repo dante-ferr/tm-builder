@@ -73,7 +73,7 @@ try {
   assert.deepEqual(diagnostics.at(-1), []);
 
   changed({document}); fire(250);
-  children[2].stderr.emit('data', "ModuleNotFoundError: No module named 'teocomp'");
+  children[2].stderr.emit('data', "ModuleNotFoundError: No module named 'tm_builder'");
   children[2].emit('close', 1);
   assert.match(diagnostics.at(-1)[0].message, /ModuleNotFoundError/);
   assert.ok(diagnostics.at(-1)[0].message.includes(children[2].python));

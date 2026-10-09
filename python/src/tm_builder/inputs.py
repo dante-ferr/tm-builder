@@ -3,7 +3,7 @@
 from mtm.tape import Tape
 from pydantic import BaseModel, ConfigDict, Field
 
-from teocomp.definition import DefinitionError, MachineDefinition, parse_yaml_model
+from tm_builder.definition import DefinitionError, MachineDefinition, parse_yaml_model
 
 
 class TapeSetup(BaseModel):

@@ -9,10 +9,10 @@ import xml.etree.ElementTree as ET
 
 import yaml
 
-from teocomp.definition import parse_definition
-from teocomp.designer import DiagramSource
-from teocomp.export import export_diagram
-from teocomp.ide import inspect_source
+from tm_builder.definition import parse_definition
+from tm_builder.designer import DiagramSource
+from tm_builder.export import export_diagram
+from tm_builder.ide import inspect_source
 
 SOURCE = (Path(__file__).resolve().parent / 'fixtures/machines/copy.yaml').read_text()
 
@@ -75,7 +75,7 @@ class IDEViewerTests(unittest.TestCase):
             self.assertEqual(live['mode'], 'Unsaved VS Code buffer')
             self.assertNotEqual(initial['revision'], live['revision'])
             self.assertEqual(target.read_text(), SOURCE)
-            with patch('teocomp.designer.time.monotonic', return_value=time.monotonic() + 4):
+            with patch('tm_builder.designer.time.monotonic', return_value=time.monotonic() + 4):
                 self.assertEqual(viewer.snapshot()['name'], 'Two-tape copy')
 
     def test_saved_edits_and_invalid_buffer(self):

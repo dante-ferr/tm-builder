@@ -1,4 +1,4 @@
-# Teocomp: Turing machine design tools
+# tm-builder: Turing machine design tools
 
 Define Turing machines in YAML, validate them in VS Code, view live diagrams,
 and execute them with custom tape setups. Supports deterministic and
@@ -14,8 +14,8 @@ make install-extension
 ```
 
 Open the root in VS Code, reload the window, and install the recommended Red Hat
-YAML extension. Teocomp validates unsaved machine definitions and completes states,
-symbols, and moves. It uses `python/.venv`; set `teocomp.pythonPath` for another
+YAML extension. tm-builder validates unsaved machine definitions and completes states,
+symbols, and moves. It uses `python/.venv`; set `tm-builder.pythonPath` for another
 interpreter.
 
 ## Commands
@@ -89,7 +89,7 @@ The lists update as files are added or removed. Imported machines stay in memory
 
 The viewer follows saved changes and unsaved VS Code edits. It keeps the last
 valid diagram visible while errors are fixed. For a custom port, set
-`teocomp.previewPort` to match `PORT`.
+`tm-builder.previewPort` to match `PORT`.
 
 ## Animated debugging
 
@@ -183,9 +183,19 @@ checks in VS Code and are validated when executed.
 
 ## Development
 
-Use `make build` after web changes, `make install-extension` after extension
-changes, and `make schemas` after model changes. `make test-vscode` runs the
-extension host checks. See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution checks.
+The web UI uses the Next.js App Router (`web/app/`) and reusable components in
+`web/src/components/`; its client workspace mounts the existing controller from
+`web/src/viewer.js` with an effect cleanup. The Python SVG renderer remains at
+`web/src/render.js`. Use Node.js 20.9 or newer. From `web/`, run `npm ci` and
+`npm run dev` to start Next on port 3000; it proxies API requests to the Python
+server at `http://127.0.0.1:8765` by default. Start the API with
+`TM_BUILDER_DEV_ORIGIN=http://127.0.0.1:3000 make view` to allow development
+requests. Set `TM_BUILDER_API_ORIGIN` to use a
+different API origin. `npm run build` makes a static export in `web/out/`, which
+`make view` serves with the Python API. Use `make build` after web changes,
+`make install-extension` after extension changes, and `make schemas` after
+model changes. `make test-vscode` runs the extension host checks. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for contribution checks.
 
 Simulation uses [multitape-tm](https://pypi.org/project/multitape-tm/); diagrams use
 [Graphviz via Viz.js](https://viz-js.com/api/).

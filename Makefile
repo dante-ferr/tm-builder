@@ -4,7 +4,7 @@ POETRY ?= poetry
 NPM ?= npm
 CODE ?= code
 PYTHON := $(POETRY) --project python run
-TEOCOMP := $(PYTHON) teocomp
+TM_BUILDER := $(PYTHON) tm-builder
 MACHINE ?= machines/copy.yaml
 INPUTS ?=
 MAX_STEPS ?= 1000
@@ -60,30 +60,30 @@ extension: editor-install
 	$(NPM) --prefix editors/vscode run package
 
 install-extension: extension
-	$(CODE) --install-extension dist/teocomp-vscode.vsix --force
+	$(CODE) --install-extension dist/tm-builder-vscode.vsix --force
 
 view:
-	$(TEOCOMP) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) --port "$(PORT)" $(ARGS)
+	$(TM_BUILDER) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) --port "$(PORT)" $(ARGS)
 
 run:
-	$(TEOCOMP) run "$(MACHINE)" $(if $(strip $(INPUTS)),--inputs-file "$(INPUTS)",) --max-steps "$(MAX_STEPS)" $(ARGS)
+	$(TM_BUILDER) run "$(MACHINE)" $(if $(strip $(INPUTS)),--inputs-file "$(INPUTS)",) --max-steps "$(MAX_STEPS)" $(ARGS)
 
 graph:
-	$(TEOCOMP) graph "$(MACHINE)" --output "$(OUTPUT)" $(ARGS)
+	$(TM_BUILDER) graph "$(MACHINE)" --output "$(OUTPUT)" $(ARGS)
 
 table:
-	$(TEOCOMP) table "$(MACHINE)" --output "$(OUTPUT)" --format "$(FORMAT)" --style "$(STYLE)" --layout "$(LAYOUT)" --dpi "$(DPI)" $(ARGS)
+	$(TM_BUILDER) table "$(MACHINE)" --output "$(OUTPUT)" --format "$(FORMAT)" --style "$(STYLE)" --layout "$(LAYOUT)" --dpi "$(DPI)" $(ARGS)
 
 check:
-	$(TEOCOMP) check "$(MACHINE)" $(ARGS)
+	$(TM_BUILDER) check "$(MACHINE)" $(ARGS)
 
 check-all:
 	@set -e; for machine in machines/*.yaml machines/*.yml; do \
-	  [ -f "$$machine" ] || continue; $(TEOCOMP) check "$$machine"; done
+	  [ -f "$$machine" ] || continue; $(TM_BUILDER) check "$$machine"; done
 
 schemas:
-	$(TEOCOMP) schema
-	$(TEOCOMP) schema --kind inputs
+	$(TM_BUILDER) schema
+	$(TM_BUILDER) schema --kind inputs
 
 test: build
 	$(PYTHON) python -m unittest discover -s python/tests -v
@@ -93,7 +93,7 @@ test-extension:
 	node editors/vscode/tests/validator.cjs
 
 test-vscode:
-	$(CODE) --user-data-dir /tmp/teocomp-vscode-tests \
+	$(CODE) --user-data-dir /tmp/tm-builder-vscode-tests \
 	  --extensionDevelopmentPath="$(CURDIR)/editors/vscode" \
 	  --extensionTestsPath="$(CURDIR)/editors/vscode/tests/vscode-host.cjs" \
 	  --disable-workspace-trust "$(CURDIR)"

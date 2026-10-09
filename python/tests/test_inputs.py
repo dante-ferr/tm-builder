@@ -9,10 +9,10 @@ import unittest
 from unittest.mock import patch
 import yaml
 
-from teocomp.cli import main
-from teocomp.definition import DefinitionError, parse_definition
-from teocomp.inputs import parse_inputs
-from teocomp.simulation import simulate
+from tm_builder.cli import main
+from tm_builder.definition import DefinitionError, parse_definition
+from tm_builder.inputs import parse_inputs
+from tm_builder.simulation import simulate
 
 ROOT = Path(__file__).resolve().parents[1]
 COPY = ROOT / 'tests/fixtures/machines/copy.yaml'
@@ -71,7 +71,7 @@ class InputTests(unittest.TestCase):
                     data['model'] = model
                     path.write_text(yaml.safe_dump(data))
                     output = io.StringIO()
-                    with patch('sys.argv', ['teocomp', 'run', str(path)]), redirect_stdout(output):
+                    with patch('sys.argv', ['tm-builder', 'run', str(path)]), redirect_stdout(output):
                         main()
                     status, configuration = output.getvalue().split('\n', 1)
                     self.assertEqual(status, 'Status: ACCEPT')
@@ -79,7 +79,7 @@ class InputTests(unittest.TestCase):
 
     def test_cli_direct_input_still_initializes_tapes(self):
         output = io.StringIO()
-        with patch('sys.argv', ['teocomp', 'run', str(COPY), '--input', 'abba', '']), redirect_stdout(output):
+        with patch('sys.argv', ['tm-builder', 'run', str(COPY), '--input', 'abba', '']), redirect_stdout(output):
             main()
         self.assertEqual(json.loads(output.getvalue().split('\n', 1)[1])['step'], 5)
 
@@ -113,12 +113,12 @@ class InputTests(unittest.TestCase):
             path = Path(directory) / 'inputs.yaml'
             path.write_text('tapes: [{contents: abba}]')
             output = io.StringIO()
-            with patch('sys.argv', ['teocomp', 'run', str(COPY), '--inputs-file', str(path)]), redirect_stdout(output):
+            with patch('sys.argv', ['tm-builder', 'run', str(COPY), '--inputs-file', str(path)]), redirect_stdout(output):
                 main()
             self.assertIn('Status: ACCEPT', output.getvalue())
             path.write_text('tapes: [{contents: 101}]')
             errors = io.StringIO()
-            with patch('sys.argv', ['teocomp', 'run', str(COPY), '--inputs-file', str(path)]), redirect_stderr(errors):
+            with patch('sys.argv', ['tm-builder', 'run', str(COPY), '--inputs-file', str(path)]), redirect_stderr(errors):
                 with self.assertRaises(SystemExit) as caught:
                     main()
             self.assertEqual(caught.exception.code, 1)

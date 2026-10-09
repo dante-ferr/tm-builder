@@ -7,8 +7,8 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from teocomp.cli import main
-from teocomp.designer import DiagramSource, create_server, library_files
+from tm_builder.cli import main
+from tm_builder.designer import DiagramSource, create_server, library_files
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = (ROOT / 'machines/copy.yaml').read_text()
@@ -18,7 +18,7 @@ class LibraryTests(unittest.TestCase):
     def test_optional_cli_machine(self):
         for args, expected in [([], None), (['view', '--no-open'], None),
                                (['view', 'machines/copy.yaml'], Path('machines/copy.yaml'))]:
-            with self.subTest(args=args), patch('sys.argv', ['teocomp', *args]), patch('teocomp.designer.serve') as serve:
+            with self.subTest(args=args), patch('sys.argv', ['tm-builder', *args]), patch('tm_builder.designer.serve') as serve:
                 main()
                 self.assertEqual(serve.call_args.args[0], expected)
 
@@ -30,7 +30,7 @@ class LibraryTests(unittest.TestCase):
             for name in ('example.yaml', 'personal.yml', 'notes.txt'):
                 (root / 'machines' / name).write_text(SOURCE)
             (root / 'machines/outside.yaml').symlink_to(ROOT / 'machines/copy.yaml')
-            with patch('teocomp.designer.PROJECT', root):
+            with patch('tm_builder.designer.PROJECT', root):
                 self.assertEqual(library_files('machines'), [
                     {'filename': 'example.yaml', 'example': True},
                     {'filename': 'personal.yml', 'example': False}])
@@ -93,3 +93,86 @@ class LibraryTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join()
+
+    def test_http_serves_static_export_files_and_rejects_workspace_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            output = base / 'out'
+            output.mkdir()
+            (output / '_next/static/chunks').mkdir(parents=True)
+            (output / 'guide').mkdir()
+            escaped = base / 'outside'
+            escaped.mkdir()
+            (escaped / 'index.html').write_text('<main>outside</main>')
+            (output / 'symlink-index').mkdir()
+            (output / 'symlink-index/index.html').symlink_to(escaped / 'index.html')
+            (output / 'symlink-fallback.html').symlink_to(escaped / 'index.html')
+            (output / 'index.html').write_text('<main>exported app</main>')
+            (output / 'guide.html').write_text('<main>guide</main>')
+            (output / 'guide/index.html').write_text('<main>guide directory</main>')
+            (output / '_next/static/chunks/app.js').write_text('export default 1')
+            (output / 'styles.css').write_text('body { color: black }')
+            with patch('tm_builder.designer.WEB_OUT', output):
+                server = create_server(port=0)
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                connection = HTTPConnection('127.0.0.1', server.server_port)
+
+                def get(path):
+                    connection.request('GET', path)
+                    response = connection.getresponse()
+                    return response.status, response.getheader('Content-Type'), response.read()
+
+                try:
+                    status, mime, body = get('/')
+                    self.assertEqual((status, mime, body),
+                                     (200, 'text/html; charset=utf-8', b'<main>exported app</main>'))
+                    self.assertEqual(get('/guide')[:2], (200, 'text/html; charset=utf-8'))
+                    self.assertEqual(get('/guide/')[2], b'<main>guide directory</main>')
+                    self.assertEqual(get('/_next/static/chunks/app.js')[:2],
+                                     (200, 'text/javascript; charset=utf-8'))
+                    self.assertEqual(get('/styles.css')[:2], (200, 'text/css; charset=utf-8'))
+                    self.assertEqual(get('/missing.js')[0], 404)
+                    self.assertEqual(get('/%2e%2e/AGENTS.md')[0], 404)
+                    self.assertEqual(get('/symlink-index/')[0], 404)
+                    self.assertEqual(get('/symlink-fallback')[0], 404)
+                    self.assertEqual(get('/api/library')[0], 200)
+                finally:
+                    connection.close()
+                    server.shutdown()
+                    server.server_close()
+                    thread.join()
+
+    def test_http_accepts_only_configured_dev_origin_with_backend_host(self):
+        with patch.dict('os.environ', {'TM_BUILDER_DEV_ORIGIN': 'http://127.0.0.1:3000'}):
+            server = create_server(port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = HTTPConnection('127.0.0.1', server.server_port)
+            try:
+                connection.request('GET', '/api/library', headers={
+                    'Origin': 'http://127.0.0.1:3000',
+                    'Host': f'127.0.0.1:{server.server_port}',
+                })
+                accepted = connection.getresponse()
+                self.assertEqual(accepted.status, 200)
+                accepted.read()
+                connection.request('GET', '/api/library', headers={
+                    'Origin': 'https://unrelated.example',
+                    'Host': f'127.0.0.1:{server.server_port}',
+                })
+                rejected = connection.getresponse()
+                self.assertEqual(rejected.status, 403)
+                rejected.read()
+                connection.request('GET', '/api/library', headers={
+                    'Origin': 'http://127.0.0.1:3000',
+                    'Host': '127.0.0.1:3000',
+                })
+                wrong_host = connection.getresponse()
+                self.assertEqual(wrong_host.status, 403)
+                wrong_host.read()
+            finally:
+                connection.close()
+                server.shutdown()
+                server.server_close()
+                thread.join()

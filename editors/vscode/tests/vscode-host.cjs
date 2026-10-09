@@ -4,12 +4,12 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
 exports.run = async () => {
-  const report = process.env.TEOCOMP_TEST_REPORT;
+  const report = process.env.TM_BUILDER_TEST_REPORT;
   try {
     const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(root, 'python/tests/fixtures/machines/copy.yaml')));
     await vscode.window.showTextDocument(document);
-    const extension = vscode.extensions.getExtension('teocomp-local.teocomp-machines');
+    const extension = vscode.extensions.getExtension('tm-builder-local.tm-builder-machines');
     assert.ok(extension, 'Development extension is registered');
     await extension.activate();
     const original = document.getText();
@@ -20,7 +20,7 @@ exports.run = async () => {
     };
     const waitFor = async predicate => {
       for (let i = 0; i < 40; i++) {
-        const issues = vscode.languages.getDiagnostics(document.uri).filter(d => d.source === 'teocomp');
+        const issues = vscode.languages.getDiagnostics(document.uri).filter(d => d.source === 'tm-builder');
         if (predicate(issues)) return issues;
         await new Promise(resolve => setTimeout(resolve, 150));
       }

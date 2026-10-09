@@ -11,7 +11,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter,
 from yaml.nodes import MappingNode, SequenceNode
 
 if TYPE_CHECKING:
-    from teocomp.inputs import InputDefinition
+    from tm_builder.inputs import InputDefinition
 
 Symbol = Annotated[str, Field(min_length=1, max_length=1)]
 State = Annotated[str, Field(min_length=1)]
@@ -85,7 +85,7 @@ class MachineDefinition(BaseModel):
     def create_machine(self, inputs: list[str] | None = None, *,
                        setup: InputDefinition | None = None) -> MultiTapeTuringMachine:
         if self.model != "deterministic":
-            raise ValueError("Nondeterministic machines run with teocomp simulation, not as a single mtm machine.")
+            raise ValueError("Nondeterministic machines run with tm-builder simulation, not as a single mtm machine.")
         if setup is not None and inputs is not None:
             raise ValueError("Choose input strings or a tape setup, not both.")
         prepared = setup.build_tapes(self) if setup is not None else None

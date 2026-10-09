@@ -1,15 +1,23 @@
 {
-  "name": "teocomp-web",
+  "name": "tm-builder-web",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/viewer.js --bundle --minify --format=esm --outfile=public/assets/viewer.js --legal-comments=linked && esbuild src/render.js --bundle --minify --platform=node --format=cjs --outfile=public/assets/render.cjs --legal-comments=linked"
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "npm run build:renderer && next build --webpack",
+    "build:renderer": "esbuild src/render.js --bundle --minify --platform=node --format=cjs --outfile=public/assets/render.cjs --legal-comments=linked"
   },
   "dependencies": {
-    "@viz-js/viz": "^3.0.0"
+    "@viz-js/viz": "^3.0.0",
+    "next": "^16.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.9.0"
+  }
 }

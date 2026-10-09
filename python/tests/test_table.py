@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from teocomp.definition import parse_definition
-from teocomp.table import export_table, latex_text, table_cells, transition_table
+from tm_builder.definition import parse_definition
+from tm_builder.table import export_table, latex_text, table_cells, transition_table
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -52,7 +52,7 @@ class TableTests(unittest.TestCase):
         definition.transitions[0].source = 'q,"á"\nnext'
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / 'table.csv'
-            with patch('teocomp.table.shutil.which', side_effect=AssertionError('tool lookup')):
+            with patch('tm_builder.table.shutil.which', side_effect=AssertionError('tool lookup')):
                 self.assertEqual(export_table(definition, target), [target])
             with target.open(newline='') as stream:
                 rows = list(csv.reader(stream))
@@ -88,7 +88,7 @@ class TableTests(unittest.TestCase):
         definition.transitions *= 160
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            with patch('teocomp.table.shutil.which', side_effect=AssertionError('tool lookup')):
+            with patch('tm_builder.table.shutil.which', side_effect=AssertionError('tool lookup')):
                 split = export_table(definition, root / 'table.png', dpi=72)
                 long = export_table(definition, root / 'long.png', layout='long', dpi=72)
             self.assertGreater(len(split), 1)
@@ -115,7 +115,7 @@ class TableTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             tex = root / 'table.tex'
-            with patch('teocomp.table.shutil.which', return_value=None):
+            with patch('tm_builder.table.shutil.which', return_value=None):
                 self.assertEqual(export_table(load('copy.yaml'), tex), [tex])
                 with self.assertRaisesRegex(RuntimeError, 'require'):
                     export_table(load('copy.yaml'), tex, split_a4=True)
@@ -125,8 +125,8 @@ class TableTests(unittest.TestCase):
                     export_table(load('copy.yaml'), root / 'table.png', **options)
             existing = root / 'table-a4-001.png'
             existing.write_bytes(b'previous')
-            with patch('teocomp.table.shutil.which', return_value='/tools/engine'), \
-                 patch('teocomp.table.subprocess.run', return_value=subprocess.CompletedProcess([], 1, '', 'bad font')):
+            with patch('tm_builder.table.shutil.which', return_value='/tools/engine'), \
+                 patch('tm_builder.table.subprocess.run', return_value=subprocess.CompletedProcess([], 1, '', 'bad font')):
                 with self.assertRaisesRegex(RuntimeError, 'LaTeX compilation failed'):
                     export_table(load('copy.yaml'), root / 'table.png', style='formal')
             self.assertEqual(existing.read_bytes(), b'previous')
@@ -134,10 +134,10 @@ class TableTests(unittest.TestCase):
     def test_cli_and_make_arguments(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / 'table.csv'
-            with patch('sys.argv', ['teocomp', 'table', str(ROOT / 'machines/copy.yaml'),
+            with patch('sys.argv', ['tm-builder', 'table', str(ROOT / 'machines/copy.yaml'),
                                     '--output', str(target), '--format', 'csv', '--style', 'formal']), \
                  patch('builtins.print'):
-                from teocomp.cli import main
+                from tm_builder.cli import main
                 main()
             self.assertIn(r'\delta', target.read_text())
         result = subprocess.run(['make', '-n', 'table', 'FORMAT=image', 'STYLE=formal', 'LAYOUT=long'],

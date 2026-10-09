@@ -1,5 +1,5 @@
 [project]
-name = "teocomp-turing-machines"
+name = "tm-builder"
 version = "0.1.0"
 description = "Coursework workspace for designing multi-tape Turing machines"
 license = "MIT"
@@ -15,10 +15,10 @@ dependencies = [
 ]
 
 [project.scripts]
-teocomp = "teocomp.cli:main"
+tm-builder = "tm_builder.cli:main"
 
 [tool.poetry]
-packages = [{ include = "teocomp", from = "src" }]
+packages = [{ include = "tm_builder", from = "src" }]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

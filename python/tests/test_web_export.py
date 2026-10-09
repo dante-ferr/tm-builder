@@ -13,9 +13,9 @@ import zipfile
 
 import yaml
 
-from teocomp.definition import parse_definition
-from teocomp.designer import DiagramSource, create_server
-from teocomp.web_export import export_download
+from tm_builder.definition import parse_definition
+from tm_builder.designer import DiagramSource, create_server
+from tm_builder.web_export import export_download
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = (ROOT / 'machines/copy.yaml').read_text()
@@ -30,7 +30,7 @@ class WebExportTests(unittest.TestCase):
             saved = viewer.snapshot()
             viewer.update_buffer(str(path), SOURCE.replace('Two-tape copy', 'Unsaved'))
             live = viewer.snapshot()
-            with patch('teocomp.web_export.export_download', return_value=(b'csv', 'text/csv', 'table.csv')) as download:
+            with patch('tm_builder.web_export.export_download', return_value=(b'csv', 'text/csv', 'table.csv')) as download:
                 viewer.export({'revision': live['revision'], 'format': 'csv'})
                 self.assertEqual(download.call_args.args[0].name, 'Unsaved')
                 with self.assertRaisesRegex(ValueError, 'changed'):
@@ -48,7 +48,7 @@ class WebExportTests(unittest.TestCase):
         for options in ({'name': '$(shell touch hacked)'}, {'name': '../table'},
                         {'format': '$(shell echo bad)'}, {'style': 'other'}, {'layout': 'other'},
                         {'dpi': True}, {'dpi': 601}, {'dpi': 100.5}):
-            with self.subTest(options=options), patch('teocomp.web_export.subprocess.run') as run:
+            with self.subTest(options=options), patch('tm_builder.web_export.subprocess.run') as run:
                 with self.assertRaises(ValueError):
                     export_download(definition, 'machine.yaml', options, ROOT)
                 run.assert_not_called()
@@ -69,7 +69,7 @@ class WebExportTests(unittest.TestCase):
                 output.with_name(f'{output.stem}-a4-{index:03d}.png').write_bytes(bytes([index]))
             import subprocess
             return subprocess.CompletedProcess(command, 0, '', '')
-        with patch('teocomp.web_export.subprocess.run', side_effect=run):
+        with patch('tm_builder.web_export.subprocess.run', side_effect=run):
             body, mime, name = export_download(definition, 'copy.yaml',
                                                {'name': 'table', 'style': 'formal', 'dpi': 300}, ROOT)
         self.assertEqual((mime, name), ('application/zip', 'table.zip'))

@@ -3,10 +3,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from teocomp.definition import parse_definition
-from teocomp.designer import DiagramSource
-from teocomp.inputs import parse_inputs
-from teocomp.simulation import simulate
+from tm_builder.definition import parse_definition
+from tm_builder.designer import DiagramSource
+from tm_builder.inputs import parse_inputs
+from tm_builder.simulation import simulate
 
 ROOT = Path(__file__).resolve().parents[2]
 
