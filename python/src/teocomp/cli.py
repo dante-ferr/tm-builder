@@ -17,7 +17,8 @@ def main() -> None:
     design.add_argument("--port", type=int, default=8765)
     design.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
     for name, help_text in (("check", "Validate a YAML definition"), ("run", "Run a machine"),
-                            ("graph", "Render a YAML machine to SVG or DOT")):
+                            ("graph", "Render a YAML machine to SVG or DOT"),
+                            ("table", "Export transitions to LaTeX and optional A4 PNG pages")):
         cmd = commands.add_parser(name, help=help_text)
         cmd.add_argument("machine", nargs="?", default="machines/copy.yaml")
         if name == "run":
@@ -27,6 +28,15 @@ def main() -> None:
             cmd.add_argument("--max-steps", type=int, default=1000)
         if name == "graph":
             cmd.add_argument("--output", default="output/machine.svg")
+        if name == "table":
+            cmd.add_argument("--output", help="Output path (extension must match format)")
+            cmd.add_argument("--format", choices=("csv", "image", "tex"))
+            cmd.add_argument("--style", choices=("readable", "formal"), default="readable")
+            cmd.add_argument("--layout", choices=("split", "long"), default="split")
+            cmd.add_argument("--split-a4", action="store_true",
+                             help="Render one PNG per A4 page, with repeated headers")
+            cmd.add_argument("--dpi", type=int, default=200,
+                             help="A4 PNG resolution, 72–600 DPI (default: 200)")
     schema = commands.add_parser("schema", help="Generate the YAML editor JSON schema")
     schema.add_argument("--output", help="Output path (defaults to schemas/<kind>.schema.json)")
     schema.add_argument("--kind", choices=("machine", "inputs"), default="machine")
@@ -34,7 +44,7 @@ def main() -> None:
     try:
         if args.command in (None, "design", "view"):
             from teocomp.designer import serve
-            serve(Path(getattr(args, "machine", "machines/copy.yaml")),
+            serve(getattr(args, "machine", None),
                   getattr(args, "port", 8765), not getattr(args, "no_open", False))
         elif args.command == "schema":
             target = Path(args.output or f"schemas/{args.kind}.schema.json")
@@ -63,6 +73,14 @@ def main() -> None:
             elif args.command == "graph":
                 from teocomp.export import export_diagram
                 print(export_diagram(definition, Path(args.output)))
+            elif args.command == "table":
+                from teocomp.table import export_table
+                format = args.format or (None if args.output else "image")
+                extension = "png" if format == "image" else format
+                output = Path(args.output or f"output/{Path(args.machine).stem}-{args.style}.{extension}")
+                for target in export_table(definition, output, format=format, style=args.style,
+                                           layout=args.layout, split_a4=args.split_a4, dpi=args.dpi):
+                    print(target)
     except (DefinitionError, ValueError, OSError, RuntimeError) as error:
         parser.exit(1, f"{error}\n")
 

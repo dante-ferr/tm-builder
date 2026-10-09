@@ -28,6 +28,8 @@ interpreter.
 | `make run` | Execute with blank tapes |
 | `make graph` | Export SVG |
 | `make graph OUTPUT=output/copy.dot` | Export DOT |
+| `make table` | Export minimal readable PNG table pieces |
+| `make table FORMAT=csv STYLE=formal` | Export formal transition expressions as CSV |
 | `make test` | Run regression checks |
 | `make` | List all available commands |
 
@@ -38,12 +40,52 @@ Commands default to `machines/copy.yaml`. Select another file with
 ```bash
 make run ARGS='--input abba ""'
 ```
+
+Transition exports contain only the table. Choose `FORMAT=csv|image|tex`,
+`STYLE=readable|formal`, and, for images, `LAYOUT=split|long`. Defaults are
+`image`, `readable`, and `split`. Both YAML transition formats are supported.
+
+```bash
+make table FORMAT=csv STYLE=readable
+make table FORMAT=csv STYLE=formal
+make table FORMAT=image STYLE=readable LAYOUT=split
+make table FORMAT=image STYLE=formal LAYOUT=long
+```
+
+Readable tables have Source, Read, Next, Write, and Move columns, with tuples
+in tape order. Formal tables show `(q, a)` and `δ(q, a)` using LaTeX math;
+blanks appear as `⊔`, and nondeterministic results are sets of alternatives for
+each state/read tuple. Formal CSV stores the LaTeX expressions as text for later
+typesetting; CSV itself does not render math. CSV export and readable images
+need no LaTeX installation.
+
+Files default to `output/<machine>-<style>.csv` or `.png`. Split images are
+numbered `...-a4-001.png`, `002.png`, etc. They fit the A4 printable area
+(174 × 261 mm), repeat headers, and break between complete rows. Each image is
+cropped to its table, including the final piece. Long images contain one
+continuous table with one header. Set `DPI=200` (72–600), select `MACHINE=...`,
+or override the output filename with `OUTPUT=...` and its matching extension.
+Re-exporting removes obsolete numbered pieces for that output.
+
+Formal images require `lualatex` or `xelatex` and Poppler's `pdftoppm` on `PATH`,
+with `fontspec`, `amsmath`, `geometry`, `array`, `booktabs`, `longtable`,
+`xcolor`, and `colortbl`; long formal images also need `preview` and, with
+LuaLaTeX, `luatex85`.
+`FORMAT=tex` saves the standalone LaTeX source without compiling it.
+The older CLI option `--split-a4` still renders PNG pieces alongside a `.tex` export.
+
+In the web viewer, **Export table…** offers the same format, style, layout, and
+DPI options, plus a download filename. Export the selected machine (including
+an imported file or unsaved IDE edits), or import another YAML file directly in
+the menu without changing the diagram. The server runs `make table` on a
+validated snapshot. Single outputs download directly; multiple A4 pieces arrive
+as a ZIP. Original machine files are never overwritten.
+
 `make view` opens a picker listing YAML files in `machines/`; select a machine or
 import a machine file. An explicit `MACHINE=...` still opens that file directly.
 Starting tapes also lists YAML files in `inputs/` alongside the file import.
 Bundled files are labeled **(example)**; **Hide examples** filters both lists.
 The lists update as files are added or removed. Imported machines stay in memory.
-
 
 The viewer follows saved changes and unsaved VS Code edits. It keeps the last
 valid diagram visible while errors are fixed. For a custom port, set

@@ -9,10 +9,14 @@ MACHINE ?= machines/copy.yaml
 INPUTS ?=
 MAX_STEPS ?= 1000
 PORT ?= 8765
-OUTPUT ?= output/$(notdir $(basename $(MACHINE))).svg
+FORMAT ?= image
+STYLE ?= readable
+LAYOUT ?= split
+DPI ?= 200
+OUTPUT ?= output/$(notdir $(basename $(MACHINE)))$(if $(filter table,$@),-$(STYLE).$(if $(filter image,$(FORMAT)),png,$(FORMAT)),.svg)
 ARGS ?=
 
-.PHONY: help setup python-install web-install editor-install build extension install-extension view run graph check check-all schemas test test-extension test-vscode
+.PHONY: help setup python-install web-install editor-install build extension install-extension view run graph table check check-all schemas test test-extension test-vscode
 
 help:
 	@printf '%s\n' \
@@ -23,12 +27,14 @@ help:
 	  'make view              Open the live diagram (MACHINE=..., PORT=...)' \
 	  'make run               Execute a machine (MACHINE=..., INPUTS=..., MAX_STEPS=...)' \
 	  'make graph             Export SVG or DOT (MACHINE=..., OUTPUT=...)' \
+	  'make table             Export transitions (FORMAT=csv|image|tex, STYLE=readable|formal)' \
+	  'LAYOUT=split|long      Split images at A4 height or export one long image (DPI=200)' \
 	  'make check             Validate MACHINE' \
 	  'make check-all         Validate all example machines' \
 	  'make schemas           Regenerate machine and input schemas' \
 	  'make test              Run Python and editor regression checks' \
 	  'make test-vscode       Run the VS Code Extension Development Host checks' \
-	  'ARGS="..."             Pass additional CLI options to view/run/graph/check'
+	  'ARGS="..."             Pass additional CLI options to view/run/graph/table/check'
 
 setup: python-install web-install editor-install build
 
@@ -64,6 +70,9 @@ run:
 
 graph:
 	$(TEOCOMP) graph "$(MACHINE)" --output "$(OUTPUT)" $(ARGS)
+
+table:
+	$(TEOCOMP) table "$(MACHINE)" --output "$(OUTPUT)" --format "$(FORMAT)" --style "$(STYLE)" --layout "$(LAYOUT)" --dpi "$(DPI)" $(ARGS)
 
 check:
 	$(TEOCOMP) check "$(MACHINE)" $(ARGS)
