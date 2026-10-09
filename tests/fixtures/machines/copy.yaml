@@ -1,0 +1,17 @@
+# Copy tape 1 onto tape 2. All heads start at cell 0.
+name: Two-tape copy
+tapes: 2
+blank: _
+input_alphabet: [a, b]
+tape_alphabet: [a, b, _]
+states: [copy, accept]
+start: copy
+accept: [accept]
+reject: []
+inputs: [abba, ""]
+
+# Read/write/move entries are ordered by tape: tape 1, tape 2, ...
+transitions:
+  - {from: copy, read: [a, _], to: copy, write: [a, a], move: [R, R]}
+  - {from: copy, read: [b, _], to: copy, write: [b, b], move: [R, R]}
+  - {from: copy, read: [_, _], to: accept, write: [_, _], move: [S, S]}

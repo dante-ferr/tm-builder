@@ -1,0 +1,16 @@
+{
+  "name": "teocomp-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild frontend/viewer.js --bundle --minify --format=esm --outfile=src/teocomp/web/assets/viewer.js --legal-comments=linked && esbuild frontend/render.js --bundle --minify --platform=node --format=cjs --outfile=src/teocomp/web/assets/render.cjs --legal-comments=linked",
+    "package:extension": "mkdir -p dist && cd editors/vscode && ../../node_modules/.bin/vsce package --out ../../dist/teocomp-vscode.vsix --allow-missing-repository --no-dependencies"
+  },
+  "dependencies": {
+    "@viz-js/viz": "^3.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "@vscode/vsce": "^3.0.0"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "teocomp-machines",
+  "displayName": "Teocomp Turing Machines",
+  "description": "Live type and semantic diagnostics for Teocomp machine YAML files",
+  "version": "0.1.0",
+  "publisher": "teocomp-local",
+  "license": "UNLICENSED",
+  "engines": {"vscode": "^1.85.0"},
+  "categories": ["Programming Languages"],
+  "main": "./extension.cjs",
+  "activationEvents": ["onLanguage:yaml", "onLanguage:plaintext"],
+  "capabilities": {"untrustedWorkspaces": {"supported": false}},
+  "contributes": {
+    "configuration": {
+      "title": "Teocomp",
+      "properties": {
+        "teocomp.pythonPath": {"type": "string", "default": "", "description": "Python interpreter containing teocomp; empty uses this workspace's .venv."},
+        "teocomp.previewPort": {"type": "integer", "default": 8765, "minimum": 1, "maximum": 65535, "description": "Port of the local diagram viewer."}
+      }
+    },
+    "commands": [{"command": "teocomp.preview", "title": "Teocomp: Preview Machine Diagram"}]
+  }
+}

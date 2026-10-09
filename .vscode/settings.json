@@ -1,0 +1,5 @@
+{
+  "yaml.schemas": {"./schemas/machine.schema.json": ["machines/**/*.yaml", "machines/**/*.yml"]},
+  "yaml.validate": true,
+  "yaml.completion": true
+}

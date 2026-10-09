@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teocomp · Diagram</title><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header><div><h1 id="title">Machine diagram</h1><div id="path"></div></div>
+<div class="tools"><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button><button id="download" disabled>Download SVG</button></div></header>
+<main id="graph" aria-label="Rendered machine diagram"></main>
+<footer><span id="status" role="status">Loading…</span><span>Edges: read → write, move · | separates tapes</span></footer>
+<script type="module" src="/assets/viewer.js"></script>
+</body></html>

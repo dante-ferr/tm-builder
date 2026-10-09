@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Teocomp: Export active machine SVG",
+      "type": "process",
+      "command": "poetry",
+      "args": ["run", "teocomp", "graph", "${file}", "--output", "${workspaceFolder}/output/${fileBasenameNoExtension}.svg"],
+      "options": {"cwd": "${workspaceFolder}"},
+      "problemMatcher": []
+    }
+  ]
+}

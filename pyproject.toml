@@ -1,0 +1,23 @@
+[project]
+name = "teocomp-turing-machines"
+version = "0.1.0"
+description = "Coursework workspace for designing multi-tape Turing machines"
+authors = []
+readme = "README.md"
+requires-python = ">=3.14,<4.0"
+dependencies = [
+    "multitape-tm>=1.0.4,<2.0.0",
+    "graphviz>=0.21,<0.22",
+    "PyYAML>=6.0,<7.0",
+    "pydantic>=2.12,<3.0",
+]
+
+[project.scripts]
+teocomp = "teocomp.cli:main"
+
+[tool.poetry]
+packages = [{ include = "teocomp", from = "src" }]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

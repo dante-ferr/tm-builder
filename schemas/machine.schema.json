@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "Transition": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "minLength": 1,
+          "title": "From",
+          "type": "string"
+        },
+        "read": {
+          "items": {
+            "maxLength": 1,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Read",
+          "type": "array"
+        },
+        "to": {
+          "minLength": 1,
+          "title": "To",
+          "type": "string"
+        },
+        "write": {
+          "items": {
+            "maxLength": 1,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Write",
+          "type": "array"
+        },
+        "move": {
+          "items": {
+            "enum": [
+              "L",
+              "R",
+              "S"
+            ],
+            "type": "string"
+          },
+          "title": "Move",
+          "type": "array"
+        }
+      },
+      "required": [
+        "from",
+        "read",
+        "to",
+        "write",
+        "move"
+      ],
+      "title": "Transition",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "default": "Turing machine",
+      "title": "Name",
+      "type": "string"
+    },
+    "tapes": {
+      "maximum": 32,
+      "minimum": 1,
+      "title": "Tapes",
+      "type": "integer"
+    },
+    "blank": {
+      "default": "_",
+      "maxLength": 1,
+      "minLength": 1,
+      "title": "Blank",
+      "type": "string"
+    },
+    "input_alphabet": {
+      "items": {
+        "maxLength": 1,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Input Alphabet",
+      "type": "array"
+    },
+    "tape_alphabet": {
+      "items": {
+        "maxLength": 1,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Tape Alphabet",
+      "type": "array"
+    },
+    "states": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "States",
+      "type": "array"
+    },
+    "start": {
+      "minLength": 1,
+      "title": "Start",
+      "type": "string"
+    },
+    "accept": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Accept",
+      "type": "array"
+    },
+    "reject": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Reject",
+      "type": "array"
+    },
+    "inputs": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inputs"
+    },
+    "transitions": {
+      "items": {
+        "$ref": "#/$defs/Transition"
+      },
+      "title": "Transitions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "tapes",
+    "input_alphabet",
+    "tape_alphabet",
+    "states",
+    "start",
+    "transitions"
+  ],
+  "title": "MachineDefinition",
+  "type": "object"
+}

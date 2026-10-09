@@ -1,0 +1,17 @@
+:root { font-family: system-ui, sans-serif; color: #26364a; background: #fafcfd; }
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; display: flex; flex-direction: column; }
+header { background: white; padding: 16px 24px; border-bottom: 1px solid #dce2e9; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+h1 { font-size: 16px; margin: 0 0 5px; }
+#path { font-size: 11px; color: #778492; word-break: break-all; }
+.tools { display: flex; gap: 6px; flex-shrink: 0; }
+button { font: inherit; font-size: 12px; background: white; padding: 8px 12px; border: 1px solid #d6dde5; border-radius: 6px; color: #33465d; cursor: pointer; }
+button:hover { background: #edf4f2; }
+button:disabled { opacity: .4; cursor: default; }
+#download { background: #245b55; color: white; border-color: #245b55; }
+main { flex: 1; min-height: 0; overflow: auto; padding: 24px; background-image: radial-gradient(#dce3e9 1px, transparent 1px); background-size: 20px 20px; }
+main svg { display: block; margin: auto; max-width: none; }
+main.stale { opacity: .3; }
+footer { background: white; border-top: 1px solid #dce2e9; display: flex; justify-content: space-between; gap: 15px; font-size: 11px; color: #778492; padding: 12px 24px; }
+#status { max-width: 65%; overflow-wrap: anywhere; }
+@media (max-width: 640px) { header { flex-wrap: wrap; padding: 12px; } footer { display: block; } footer span { display: block; margin: 3px 0; } #status { max-width: none; } }

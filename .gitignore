@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+/dist/
+/build/
+/output/
+.DS_Store
+node_modules/
+src/teocomp/web/assets/
+.env
+.env.*
+!.env.example
+*.vsix
+.aws/
+.codex/
