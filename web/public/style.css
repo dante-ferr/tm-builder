@@ -44,3 +44,24 @@ input, select, textarea { border: 1px solid #d6dde5; border-radius: 5px; padding
 .edge.active-rule text { fill: #9a6200; }
 @media (max-width: 640px) { #debugger { padding: 12px; } .setup-grid { grid-template-columns: 1fr; gap: 10px; } }
 @media (prefers-reduced-motion: reduce) { .cell { transition: none; } }
+
+.library { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 24px; background: white; border-bottom: 1px solid #dce2e9; }
+.library label, .setup-grid > div > label { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.setup-grid > div > label { margin-bottom: 8px; }
+.library select, #input-select { max-width: 100%; }
+.library input[type=file], #setup-file { max-width: 240px; }
+#library-status { font-size: 12px; color: #637487; }
+@media (max-width: 640px) { .library { padding: 12px; } }
+
+#export-dialog { width: min(540px, calc(100vw - 24px)); max-height: 90vh; overflow: auto; padding: 24px; border: 1px solid #d6dde5; border-radius: 12px; color: #26364a; box-shadow: 0 20px 70px #26364a30; }
+#export-dialog::backdrop { background: #26364a55; }
+.export-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.export-heading h2 { font-size: 18px; margin: 0; }
+#export-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+#export-form [hidden] { display: none; }
+.export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; margin-top: 16px; }
+.export-help { font-size: 12px; line-height: 1.5; color: #637487; margin: 0 0 12px; overflow-wrap: anywhere; }
+.export-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
+#export-status { font-size: 12px; overflow-wrap: anywhere; }
+#export-submit { background: #245b55; color: white; border-color: #245b55; flex-shrink: 0; }
+@media (max-width: 640px) { .tools { flex-wrap: wrap; } #export-dialog { padding: 18px; } .export-grid { grid-template-columns: 1fr; } .export-actions { align-items: stretch; flex-direction: column; } }

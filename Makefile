@@ -57,7 +57,7 @@ install-extension: extension
 	$(CODE) --install-extension dist/teocomp-vscode.vsix --force
 
 view:
-	$(TEOCOMP) view "$(MACHINE)" --port "$(PORT)" $(ARGS)
+	$(TEOCOMP) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) --port "$(PORT)" $(ARGS)
 
 run:
 	$(TEOCOMP) run "$(MACHINE)" $(if $(strip $(INPUTS)),--inputs-file "$(INPUTS)",) --max-steps "$(MAX_STEPS)" $(ARGS)

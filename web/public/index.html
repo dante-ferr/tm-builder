@@ -6,12 +6,37 @@
 </head>
 <body>
 <header><div><h1 id="title">Machine diagram</h1><div id="path"></div></div>
-<div class="tools"><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button><button id="download" disabled>Download SVG</button></div></header>
+<div class="tools"><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button><button id="export-open">Export table…</button><button id="download" disabled>Download SVG</button></div></header>
+<section class="library" aria-label="Machine library">
+  <label>Machine <select id="machine-select"><option value="">Choose a machine…</option></select></label>
+  <label>Import a machine <input id="machine-file" type="file" accept=".yaml,.yml"></label>
+  <label><input id="hide-examples" type="checkbox"> Hide examples</label>
+  <span id="library-status" role="status"></span>
+</section>
+<dialog id="export-dialog" aria-labelledby="export-title">
+  <form id="export-form">
+    <div class="export-heading"><h2 id="export-title">Export transition table</h2><button type="button" id="export-close" aria-label="Close export menu">×</button></div>
+    <label>Machine <select id="export-source"><option value="current">Currently selected machine</option><option value="file">Another YAML file…</option></select></label>
+    <p id="export-machine" class="export-help"></p>
+    <label id="export-file-label" hidden>Import a machine <input id="export-file" type="file" accept=".yaml,.yml"></label>
+    <div class="export-grid">
+      <label>Format <select id="export-format"><option value="image">Image (PNG)</option><option value="csv">CSV</option><option value="tex">LaTeX source</option></select></label>
+      <label>Style <select id="export-style"><option value="readable">Readable</option><option value="formal">Formal mathematics</option></select></label>
+      <label id="export-layout-label">Layout <select id="export-layout"><option value="split">A4 pieces</option><option value="long">One long table</option></select></label>
+      <label id="export-dpi-label">Resolution (DPI) <input id="export-dpi" type="number" min="72" max="600" step="1" value="200" required></label>
+    </div>
+    <p id="export-help" class="export-help"></p>
+    <label>File name (without extension) <input id="export-name" type="text" maxlength="100" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{0,99}" title="Start with a letter or number; use letters, numbers, dots, underscores, or hyphens." required></label>
+    <p class="export-help">Images contain only the table. Multiple A4 pieces download together as a ZIP.</p>
+    <div class="export-actions"><span id="export-status" role="status" aria-live="polite"></span><button type="submit" id="export-submit">Export & download</button></div>
+  </form>
+</dialog>
 <main id="graph" aria-label="Rendered machine diagram"></main>
 <section id="debugger" aria-label="Machine debugger">
   <details open id="setup-panel"><summary>Starting tapes</summary>
     <div class="setup-grid"><label>Setup YAML <textarea id="setup" spellcheck="false" rows="4">tapes: []</textarea></label>
-    <div><label>Load an input setup <input id="setup-file" type="file" accept=".yaml,.yml"></label>
+    <div><label>Input setup <select id="input-select"><option value="">Choose an input…</option></select></label>
+    <label>Import an input setup <input id="setup-file" type="file" accept=".yaml,.yml"></label>
     <p>Use contents, origin, and head from the input setup format. Omitted tapes start blank.</p>
     <label>Maximum steps <input id="max-steps" type="number" min="1" max="10000" value="1000"></label>
     <button id="run" disabled>Load trace</button></div></div>

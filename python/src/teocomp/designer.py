@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import threading
 import time
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 import webbrowser
 
 from teocomp.definition import DefinitionError, parse_definition
@@ -36,21 +36,52 @@ def ensure_assets():
         raise RuntimeError('Asset build failed. Run make build from the workspace root.') from error
 
 
+def library_files(kind):
+    """List local YAML files; the gitignore allowlist identifies bundled examples."""
+    if kind not in ('machines', 'inputs'):
+        raise ValueError('Unknown library')
+    examples = set()
+    for line in (PROJECT / '.gitignore').read_text().splitlines():
+        prefix = f'!/{kind}/'
+        if line.startswith(prefix):
+            examples.add(line[len(prefix):])
+    folder = PROJECT / kind
+    return [{'filename': path.name, 'example': path.name in examples}
+            for path in sorted(folder.iterdir())
+            if path.suffix.lower() in ('.yaml', '.yml') and path.is_file()
+            and path.resolve().parent == folder.resolve()]
+
+
+def library_path(kind, filename):
+    if not isinstance(filename, str) or filename not in {entry['filename'] for entry in library_files(kind)}:
+        raise ValueError('File is not in the library')
+    return PROJECT / kind / filename
+
+
 class DiagramSource:
     """Prefer a fresh IDE buffer; otherwise follow the saved file."""
 
-    def __init__(self, path: Path):
-        self.path = path.resolve()
+    def __init__(self, path: Path | None = None):
+        self.path = path.resolve() if path else None
+        self.imported = None
         self.buffer = None
         self.buffer_time = 0
         self.lock = threading.RLock()
         self.cache = None
         self.definition = None
 
-    def update_buffer(self, path: str, source: str) -> bool:
-        if Path(path).resolve() != self.path:
-            return False
+    def select(self, path: Path | None = None, *, source=None, filename=None):
         with self.lock:
+            self.path = path.resolve() if path else None
+            self.imported = (filename, source) if source is not None else None
+            self.buffer = None
+            self.cache = None
+            self.definition = None
+
+    def update_buffer(self, path: str, source: str) -> bool:
+        with self.lock:
+            if Path(path).resolve() != self.path:
+                return False
             self.buffer = source
             self.buffer_time = time.monotonic()
         return True
@@ -60,22 +91,27 @@ class DiagramSource:
             return self._snapshot()
 
     def _snapshot(self):
+        if self.path is None and self.imported is None:
+            return {'valid': False, 'revision': 'unselected', 'path': '',
+                    'diagnostics': [{'message': 'Choose a machine or import a YAML file.',
+                                     'line': 1, 'column': 1, 'severity': 'info'}]}
         live = self.buffer is not None and time.monotonic() - self.buffer_time < 3
         source = self.buffer if live else None
         try:
-            saved = self.path.read_text()
+            saved = self.imported[1] if self.imported else self.path.read_text()
             if source is None:
                 source = saved
-            mode = 'Unsaved VS Code buffer' if live and source != saved else 'Saved file'
+            mode = 'Imported file' if self.imported else 'Unsaved VS Code buffer' if live and source != saved else 'Saved file'
         except OSError as error:
             if source is None:
                 return {'valid': False, 'revision': str(error), 'path': str(self.path),
                         'diagnostics': [{'message': str(error), 'line': 1, 'column': 1, 'severity': 'error'}]}
             mode = 'Unsaved VS Code buffer'
-        revision = sha256((source + '\0' + mode).encode()).hexdigest()
+        name = self.imported[0] if self.imported else str(self.path)
+        revision = sha256((source + '\0' + mode + '\0' + name).encode()).hexdigest()
         if self.cache and self.cache['revision'] == revision:
             return self.cache
-        result = {'path': str(self.path), 'filename': self.path.stem, 'revision': revision, 'mode': mode}
+        result = {'path': name, 'filename': Path(name).stem, 'revision': revision, 'mode': mode}
         try:
             definition, warnings = parse_definition(source)
             self.definition = definition
@@ -101,25 +137,44 @@ class DiagramSource:
             result = simulate(self.definition, max_steps=data.get('max_steps', 1000), setup=setup)
             return {**result, 'revision': current['revision'], 'model': self.definition.model}
 
+    def export(self, data):
+        from teocomp.web_export import export_download
+        if 'source' in data:
+            if not isinstance(data['source'], str) or not isinstance(data.get('filename'), str):
+                raise ValueError('Expected imported machine YAML and a filename.')
+            definition, _ = parse_definition(data['source'])
+            filename = data['filename']
+        else:
+            with self.lock:
+                current = self.snapshot()
+                if not current['valid']:
+                    raise ValueError('Choose a valid machine or import a file to export.')
+                if data.get('revision') != current['revision']:
+                    raise ValueError('Machine changed; try exporting again.')
+                definition = self.definition.model_copy(deep=True)
+                filename = current['path']
+        return export_download(definition, filename, data, PROJECT)
 
-def serve(machine_path: Path, port=8765, open_browser=True):
-    machine_path = machine_path.resolve()
-    if not machine_path.is_file():
+
+def create_server(machine_path: Path | None = None, port=8765):
+    machine_path = machine_path.resolve() if machine_path else None
+    if machine_path and not machine_path.is_file():
         raise ValueError(f'Machine file does not exist: {machine_path}')
-    ensure_assets()
     source = DiagramSource(machine_path)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
 
-        def respond(self, value, status=200, mime='application/json'):
+        def respond(self, value, status=200, mime='application/json', filename=None):
             body = json.dumps(value).encode() if mime == 'application/json' else value
             self.send_response(status)
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(body)))
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
+            if filename:
+                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
             self.end_headers()
             self.wfile.write(body)
 
@@ -135,7 +190,12 @@ def serve(machine_path: Path, port=8765, open_browser=True):
                 return
             route = urlparse(self.path).path
             try:
-                if route == '/api/diagram':
+                if route == '/api/library':
+                    self.respond({kind: library_files(kind) for kind in ('machines', 'inputs')})
+                elif route == '/api/input':
+                    filename = parse_qs(urlparse(self.path).query).get('filename', [''])[0]
+                    self.respond({'source': library_path('inputs', filename).read_text()})
+                elif route == '/api/diagram':
                     self.respond(source.snapshot())
                 elif route in ('/', '/style.css', '/assets/viewer.js', '/assets/viewer.js.LEGAL.txt'):
                     relative = 'index.html' if route == '/' else route.lstrip('/')
@@ -149,7 +209,7 @@ def serve(machine_path: Path, port=8765, open_browser=True):
         def do_POST(self):
             if not self.local_request():
                 return
-            if self.path not in ('/api/buffer', '/api/simulate'):
+            if self.path not in ('/api/buffer', '/api/simulate', '/api/machine', '/api/export'):
                 self.respond({'error': 'Not found'}, 404)
                 return
             try:
@@ -159,18 +219,39 @@ def serve(machine_path: Path, port=8765, open_browser=True):
                 data = json.loads(self.rfile.read(size))
                 if not isinstance(data, dict):
                     raise ValueError('Expected a JSON object')
+                if self.path == '/api/export':
+                    body, mime, filename = source.export(data)
+                    self.respond(body, mime=mime, filename=filename)
+                    return
+                if self.path == '/api/machine':
+                    if 'source' in data:
+                        if not isinstance(data['source'], str) or not isinstance(data.get('filename'), str):
+                            raise ValueError('Expected filename and source strings')
+                        filename = data['filename']
+                        if not filename or '/' in filename or '\\' in filename:
+                            raise ValueError('Expected a filename without directories')
+                        source.select(source=data['source'], filename=filename)
+                    else:
+                        source.select(library_path('machines', data.get('filename')))
+                    self.respond(source.snapshot())
+                    return
                 if self.path == '/api/simulate':
                     self.respond(source.simulation(data))
                     return
                 if not isinstance(data.get('source'), str) or not isinstance(data.get('path'), str):
                     raise ValueError('Expected path and source strings')
                 self.respond({'matched': source.update_buffer(data['path'], data['source'])})
-            except (ValueError, OSError) as error:
+            except (ValueError, OSError, RuntimeError) as error:
                 self.respond({'error': str(error)}, 400)
 
-    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    return ThreadingHTTPServer(('127.0.0.1', port), Handler)
+
+
+def serve(machine_path: Path | None = None, port=8765, open_browser=True):
+    ensure_assets()
+    server = create_server(machine_path, port)
     url = f'http://127.0.0.1:{server.server_port}'
-    print(f'Diagram: {url}\nWatching: {machine_path}\nPress Ctrl+C to stop.', flush=True)
+    print(f'Diagram: {url}\nWatching: {machine_path or PROJECT / "machines"}\nPress Ctrl+C to stop.', flush=True)
     if open_browser:
         threading.Timer(.3, lambda: webbrowser.open(url)).start()
     try:

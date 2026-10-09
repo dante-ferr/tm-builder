@@ -12,8 +12,8 @@ from teocomp.inputs import InputDefinition, parse_inputs
 def main() -> None:
     parser = argparse.ArgumentParser(description="Design multi-tape Turing machines.")
     commands = parser.add_subparsers(dest="command")
-    design = commands.add_parser("design", aliases=["view"], help="Open a live diagram for a YAML file")
-    design.add_argument("machine", nargs="?", default="machines/copy.yaml")
+    design = commands.add_parser("design", aliases=["view"], help="Open the machine picker and live diagram")
+    design.add_argument("machine", nargs="?", type=Path)
     design.add_argument("--port", type=int, default=8765)
     design.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
     for name, help_text in (("check", "Validate a YAML definition"), ("run", "Run a machine"),

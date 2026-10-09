@@ -38,6 +38,12 @@ Commands default to `machines/copy.yaml`. Select another file with
 ```bash
 make run ARGS='--input abba ""'
 ```
+`make view` opens a picker listing YAML files in `machines/`; select a machine or
+import a machine file. An explicit `MACHINE=...` still opens that file directly.
+Starting tapes also lists YAML files in `inputs/` alongside the file import.
+Bundled files are labeled **(example)**; **Hide examples** filters both lists.
+The lists update as files are added or removed. Imported machines stay in memory.
+
 
 The viewer follows saved changes and unsaved VS Code edits. It keeps the last
 valid diagram visible while errors are fixed. For a custom port, set
@@ -45,8 +51,8 @@ valid diagram visible while errors are fixed. For a custom port, set
 
 ## Animated debugging
 
-Run `make view`, expand **Starting tapes**, and paste setup YAML or load a file
-such as `inputs/copy.yaml`. Choose a maximum step count and click **Load trace**.
+Run `make view`, choose a machine, expand **Starting tapes**, and select an input,
+paste setup YAML, or import a file such as `inputs/copy.yaml`. Choose a maximum step count and click **Load trace**.
 Use **Step**, **Back**, **Reset**, or the timeline to inspect configurations;
 **Play** animates reading, writing, head movement, and entering the next state.
 The diagram highlights the active state and the applied rule's edge. Rule details
