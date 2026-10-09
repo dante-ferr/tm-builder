@@ -85,6 +85,7 @@ Copy `machines/copy.yaml` to another file under `machines/` for your assignment:
 
 ```yaml
 name: Two-tape copy
+model: deterministic
 tapes: 2
 blank: _
 input_alphabet: [a, b]
@@ -99,6 +100,11 @@ transitions:
   - {from: copy, read: [b, _], to: copy, write: [b, b], move: [R, R]}
   - {from: copy, read: [_, _], to: accept, write: [_, _], move: [S, S]}
 ```
+
+Required fields are `name`, `model`, `tapes`, `blank`, `input_alphabet`,
+`tape_alphabet`, `states`, `start`, `accept`, `reject`, and `transitions`.
+Use `[]` to explicitly declare an empty accept or reject set or transition list.
+Each transition requires `from`, `read`, `to`, `write`, and `move`.
 
 Each rule reads symbols under the heads, writes one symbol per tape, then moves each
 head: `L` left, `R` right, `S` stay. Arrays follow tape order. Heads start at cell 0;
@@ -146,7 +152,7 @@ poetry run teocomp run machines/nondeterministic_contains_one.yaml \
   --input 00100 --max-steps 5000
 ```
 
-The parser defaults to `model: deterministic`. Use
+Set `model: deterministic` for deterministic machines. Use
 `model: nondeterministic` to allow multiple rules with the same state and read
 tuple. Reject states stop a branch. If every branch halts without accepting, the
 machine returns `REJECT`.

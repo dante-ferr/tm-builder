@@ -29,7 +29,7 @@ exports.run = async () => {
     try {
       await replace(original.replace('to: accept', 'to: typo'));
       const stateErrors = await waitFor(items => items.some(d => d.message.includes("Unknown state 'typo'")));
-      assert.ok(stateErrors.some(d => d.range.start.line === 16), 'Diagnostics point at the unsaved rule');
+      assert.ok(stateErrors.some(d => d.range.start.line === 17), 'Diagnostics point at the unsaved rule');
       assert.equal(document.isDirty, true, 'Validation runs before saving');
       await replace(original.replace('move: [R, R]', 'move: [UP, R]'));
       await waitFor(items => items.some(d => d.message.includes("'L', 'R' or 'S'")));

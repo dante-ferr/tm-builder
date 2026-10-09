@@ -7,20 +7,34 @@ import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
+import yaml
+
 from teocomp.definition import parse_definition
 from teocomp.designer import DiagramSource
 from teocomp.export import export_diagram
 from teocomp.ide import inspect_source
 
-SOURCE = (Path(__file__).resolve().parents[1] / 'machines/copy.yaml').read_text()
+SOURCE = (Path(__file__).resolve().parent / 'fixtures/machines/copy.yaml').read_text()
 
 
 class IDEViewerTests(unittest.TestCase):
+    def test_missing_fields_in_unsaved_buffer(self):
+        data = yaml.safe_load(SOURCE)
+        for field in ('name', 'model', 'tapes', 'blank', 'input_alphabet',
+                      'tape_alphabet', 'states', 'start', 'accept', 'reject', 'transitions'):
+            with self.subTest(field=field):
+                incomplete = {key: value for key, value in data.items() if key != field}
+                result = inspect_source(yaml.safe_dump(incomplete))
+                self.assertFalse(result['valid'])
+                self.assertEqual(result['diagnostics'][0]['message'], f'{field}: Field required')
+                self.assertEqual(result['diagnostics'][0]['severity'], 'error')
+                self.assertEqual(result['suggestions']['moves'], ['L', 'R', 'S'])
+
     def test_unsaved_diagnostics_and_completion(self):
         result = inspect_source(SOURCE.replace('to: accept', 'to: typo'))
         self.assertFalse(result['valid'])
         self.assertIn('Unknown state', result['diagnostics'][0]['message'])
-        self.assertEqual(result['diagnostics'][0]['line'], 17)
+        self.assertEqual(result['diagnostics'][0]['line'], 18)
         self.assertEqual(result['suggestions']['states'], ['copy', 'accept'])
         self.assertEqual(result['suggestions']['symbols'], ['a', 'b', '_'])
         self.assertTrue(inspect_source(SOURCE)['valid'])

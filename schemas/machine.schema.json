@@ -58,12 +58,10 @@
   "additionalProperties": false,
   "properties": {
     "name": {
-      "default": "Turing machine",
       "title": "Name",
       "type": "string"
     },
     "model": {
-      "default": "deterministic",
       "enum": [
         "deterministic",
         "nondeterministic"
@@ -78,7 +76,6 @@
       "type": "integer"
     },
     "blank": {
-      "default": "_",
       "maxLength": 1,
       "minLength": 1,
       "title": "Blank",
@@ -156,11 +153,16 @@
     }
   },
   "required": [
+    "name",
+    "model",
     "tapes",
+    "blank",
     "input_alphabet",
     "tape_alphabet",
     "states",
     "start",
+    "accept",
+    "reject",
     "transitions"
   ],
   "title": "MachineDefinition",

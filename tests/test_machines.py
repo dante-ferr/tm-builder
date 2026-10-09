@@ -3,11 +3,13 @@
 from pathlib import Path
 import unittest
 
+import yaml
+
 from teocomp.definition import DefinitionError, parse_definition
 from teocomp.diagram import machine_diagram
 from teocomp.simulation import simulate
 
-SOURCE = (Path(__file__).resolve().parents[1] / 'machines/copy.yaml').read_text()
+SOURCE = (Path(__file__).resolve().parent / 'fixtures/machines/copy.yaml').read_text()
 SINGLE = (Path(__file__).resolve().parents[1] / 'machines/single_tape.yaml').read_text()
 NONDETERMINISTIC = (Path(__file__).resolve().parents[1] / 'machines/nondeterministic_contains_one.yaml').read_text()
 
@@ -19,6 +21,32 @@ class MachineTests(unittest.TestCase):
         self.assertIn(message, str(caught.exception))
         self.assertTrue(all(d.line >= 1 and d.column >= 1 for d in caught.exception.diagnostics))
         return caught.exception
+
+    def test_missing_machine_fields_are_rejected(self):
+        data = yaml.safe_load(SOURCE)
+        for field in ('name', 'model', 'tapes', 'blank', 'input_alphabet',
+                      'tape_alphabet', 'states', 'start', 'accept', 'reject', 'transitions'):
+            with self.subTest(field=field):
+                incomplete = {key: value for key, value in data.items() if key != field}
+                error = self.assert_invalid(yaml.safe_dump(incomplete), f'{field}: Field required')
+                self.assertEqual(len(error.diagnostics), 1)
+
+    def test_missing_transition_fields_are_rejected(self):
+        for field in ('from', 'read', 'to', 'write', 'move'):
+            with self.subTest(field=field):
+                data = yaml.safe_load(SOURCE)
+                del data['transitions'][0][field]
+                self.assert_invalid(yaml.safe_dump(data), f'transitions.0.{field}: Field required')
+
+    def test_inputs_are_optional_and_empty_sets_are_valid(self):
+        data = yaml.safe_load(SOURCE)
+        del data['inputs']
+        data.update(accept=[], reject=[], transitions=[])
+        definition, _ = parse_definition(yaml.safe_dump(data))
+        self.assertIsNone(definition.inputs)
+        self.assertEqual(definition.accept, [])
+        self.assertEqual(definition.reject, [])
+        self.assertEqual(simulate(definition)['status'], 'HALT')
 
     def test_copy_and_empty_input(self):
         definition, warnings = parse_definition(SOURCE)
@@ -66,7 +94,7 @@ class MachineTests(unittest.TestCase):
 
     def test_invalid_fields_and_locations(self):
         error = self.assert_invalid(SOURCE.replace('to: accept', 'to: typo'), 'Unknown state')
-        self.assertEqual(error.diagnostics[0].line, 17)
+        self.assertEqual(error.diagnostics[0].line, 18)
         self.assert_invalid(SOURCE.replace('move: [R, R]', 'move: [R]'), 'needs 2 entries')
         self.assert_invalid(SOURCE.replace('move: [R, R]', 'move: [UP, R]'), "'L', 'R' or 'S'")
         self.assert_invalid(SOURCE.replace('write: [a, a]', 'write: [z, a]'), 'Unknown tape symbol')

@@ -25,16 +25,16 @@ class Transition(BaseModel):
 
 class MachineDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    name: str = "Turing machine"
-    model: Literal["deterministic", "nondeterministic"] = "deterministic"
+    name: str
+    model: Literal["deterministic", "nondeterministic"]
     tapes: int = Field(ge=1, le=32)
-    blank: Symbol = "_"
+    blank: Symbol
     input_alphabet: list[Symbol]
     tape_alphabet: list[Symbol]
     states: list[State] = Field(min_length=1)
     start: State
-    accept: list[State] = Field(default_factory=list)
-    reject: list[State] = Field(default_factory=list)
+    accept: list[State]
+    reject: list[State]
     inputs: list[str] | None = None
     transitions: list[Transition]
 

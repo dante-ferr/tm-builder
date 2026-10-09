@@ -1,5 +1,6 @@
 # Copy tape 1 onto tape 2. All heads start at cell 0.
 name: Two-tape copy
+model: deterministic
 tapes: 2
 blank: _
 input_alphabet: [a, b]
