@@ -1,5 +1,66 @@
 {
   "$defs": {
+    "GroupedTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From"
+        },
+        "read": {
+          "items": {
+            "maxLength": 1,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Read",
+          "type": "array"
+        },
+        "to": {
+          "minLength": 1,
+          "title": "To",
+          "type": "string"
+        },
+        "write": {
+          "items": {
+            "maxLength": 1,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Write",
+          "type": "array"
+        },
+        "move": {
+          "items": {
+            "enum": [
+              "L",
+              "R",
+              "S"
+            ],
+            "type": "string"
+          },
+          "title": "Move",
+          "type": "array"
+        }
+      },
+      "required": [
+        "read",
+        "to",
+        "write",
+        "move"
+      ],
+      "title": "GroupedTransition",
+      "type": "object"
+    },
     "Transition": {
       "additionalProperties": false,
       "properties": {
@@ -145,11 +206,27 @@
       "title": "Inputs"
     },
     "transitions": {
-      "items": {
-        "$ref": "#/$defs/Transition"
-      },
-      "title": "Transitions",
-      "type": "array"
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Transition"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/GroupedTransition"
+            },
+            "type": "array"
+          },
+          "propertyNames": {
+            "minLength": 1
+          },
+          "type": "object"
+        }
+      ],
+      "title": "Transitions"
     }
   },
   "required": [

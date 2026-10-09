@@ -17,7 +17,7 @@ function activate(context) {
     const root = vscode.workspace.getWorkspaceFolder(document.uri).uri.fsPath;
     const configured = config(document.uri).get('pythonPath');
     return configured ? (path.isAbsolute(configured) ? configured : path.join(root, configured)) :
-      path.join(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+      path.join(root, 'python', '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
   }
   function preview(document) {
     if (document.isClosed || !scope(document)) return;
@@ -34,7 +34,9 @@ function activate(context) {
     const key = document.uri.toString();
     previewBuffers.set(key, document);
     clearTimeout(timers.get(key));
-    jobs.get(key)?.kill();
+    const pending = jobs.get(key);
+    jobs.delete(key); // A cancelled job must not overwrite current diagnostics.
+    pending?.kill();
     timers.set(key, setTimeout(() => validate(document), 250));
   }
   function validate(document) {
@@ -42,18 +44,20 @@ function activate(context) {
     const key = document.uri.toString(), version = document.version;
     preview(document);
     const root = vscode.workspace.getWorkspaceFolder(document.uri).uri.fsPath;
-    const child = spawn(interpreter(document), ['-m', 'teocomp.ide'], {cwd: root, stdio: ['pipe', 'pipe', 'pipe']});
+    const python = interpreter(document);
+    const child = spawn(python, ['-m', 'teocomp.ide'], {cwd: root, stdio: ['pipe', 'pipe', 'pipe']});
     jobs.set(key, child);
     let stdout = '', stderr = '';
     child.stdout.on('data', chunk => stdout += chunk);
     child.stderr.on('data', chunk => stderr += chunk);
     child.stdin.on('error', () => {});
-    const watchdog = setTimeout(() => child.kill(), 10000);
+    let timedOut = false;
+    const watchdog = setTimeout(() => { timedOut = true; child.kill(); }, 10000);
     child.on('error', error => {
-      output.appendLine(`Cannot start validator: ${error.message}. Run poetry install in the project root.`);
+      output.appendLine(`Cannot start validator: ${error.message}. Run make setup in the workspace root.`);
       if (!document.isClosed && document.version === version) {
         const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1),
-          'Teocomp validator unavailable. Run poetry install; see the Teocomp output channel.', vscode.DiagnosticSeverity.Error);
+          'Teocomp validator unavailable. Run make setup; see the Teocomp output channel.', vscode.DiagnosticSeverity.Error);
         diagnostic.source = 'teocomp'; diagnostics.set(document.uri, [diagnostic]);
       }
     });
@@ -63,8 +67,12 @@ function activate(context) {
       jobs.delete(key);
       if (document.isClosed || document.version !== version) return;
       try {
-        if (code !== 0) throw new Error(stderr || stdout || `Validator exited with ${code}`);
+        if (code !== 0) throw new Error(timedOut ? 'Validator timed out after 10 seconds.' :
+          stderr || stdout || `Validator exited with ${code}`);
         const result = JSON.parse(stdout);
+        if (result.error || !Array.isArray(result.diagnostics)) {
+          throw new Error(result.error || 'Validator returned an invalid response.');
+        }
         completions.set(key, result.suggestions);
         diagnostics.set(document.uri, result.diagnostics.map(item => {
           const line = document.lineAt(Math.min(document.lineCount - 1, Math.max(0, item.line - 1)));
@@ -76,9 +84,10 @@ function activate(context) {
           diagnostic.source = 'teocomp'; return diagnostic;
         }));
       } catch (error) {
-        output.appendLine(`Validation failed: ${error.message}`);
+        output.appendLine(`Validation failed (${python}): ${error.message}`);
+        const detail = error.message.trim().split('\n').at(-1);
         const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1),
-          'Teocomp validation failed. See the Teocomp output channel.', vscode.DiagnosticSeverity.Error);
+          `Teocomp validation failed: ${detail}. Interpreter: ${python}. See the Teocomp output channel.`, vscode.DiagnosticSeverity.Error);
         diagnostic.source = 'teocomp'; diagnostics.set(document.uri, [diagnostic]);
       }
     });

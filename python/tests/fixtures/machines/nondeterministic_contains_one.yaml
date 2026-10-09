@@ -1,0 +1,20 @@
+# Demonstrates nondeterministic branching: accepts {0,1}*1{0,1}*.
+name: Nondeterministic search for 1
+model: nondeterministic
+tapes: 1
+blank: _
+input_alphabet: ["0", "1"]
+tape_alphabet: ["0", "1", _]
+states: [search, verify, accept, reject]
+start: search
+accept: [accept]
+reject: [reject]
+inputs: ["00100"]
+transitions:
+  - {from: search, read: ["0"], to: search, write: ["0"], move: [R]}
+  - {from: search, read: ["1"], to: search, write: ["1"], move: [R]}
+  - {from: search, read: ["1"], to: verify, write: ["1"], move: [R]}
+  - {from: search, read: [_], to: reject, write: [_], move: [S]}
+  - {from: verify, read: ["0"], to: verify, write: ["0"], move: [R]}
+  - {from: verify, read: ["1"], to: verify, write: ["1"], move: [R]}
+  - {from: verify, read: [_], to: accept, write: [_], move: [S]}

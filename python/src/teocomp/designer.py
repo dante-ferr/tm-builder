@@ -15,8 +15,9 @@ import webbrowser
 from teocomp.definition import DefinitionError, parse_definition
 from teocomp.diagram import machine_diagram
 
-WEB = Path(__file__).parent / 'web'
-PROJECT = Path(__file__).resolve().parents[2]
+PROJECT = Path(__file__).resolve().parents[3]
+WEB_PROJECT = PROJECT / 'web'
+WEB = WEB_PROJECT / 'public'
 
 
 def ensure_assets():
@@ -27,10 +28,10 @@ def ensure_assets():
         raise RuntimeError('Install Node.js/npm, then run this command again.')
     print('Building diagram tools (first launch only)…', flush=True)
     try:
-        subprocess.run([npm, 'ci', '--no-audit', '--no-fund'], cwd=PROJECT, check=True)
-        subprocess.run([npm, 'run', 'build'], cwd=PROJECT, check=True)
+        subprocess.run([npm, 'ci', '--no-audit', '--no-fund'], cwd=WEB_PROJECT, check=True)
+        subprocess.run([npm, 'run', 'build'], cwd=WEB_PROJECT, check=True)
     except subprocess.CalledProcessError as error:
-        raise RuntimeError('Asset build failed. Run npm ci and npm run build from the project root.') from error
+        raise RuntimeError('Asset build failed. Run make build from the workspace root.') from error
 
 
 class DiagramSource:

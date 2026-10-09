@@ -1,0 +1,14 @@
+{
+  "name": "teocomp-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/viewer.js --bundle --minify --format=esm --outfile=public/assets/viewer.js --legal-comments=linked && esbuild src/render.js --bundle --minify --platform=node --format=cjs --outfile=public/assets/render.cjs --legal-comments=linked"
+  },
+  "dependencies": {
+    "@viz-js/viz": "^3.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import yaml
 from mtm import MultiTapeTuringMachine
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter, ValidationError, ValidationInfo
 from yaml.nodes import MappingNode, SequenceNode
+
+if TYPE_CHECKING:
+    from teocomp.inputs import InputDefinition
 
 Symbol = Annotated[str, Field(min_length=1, max_length=1)]
 State = Annotated[str, Field(min_length=1)]
@@ -21,6 +24,46 @@ class Transition(BaseModel):
     to: State
     write: list[Symbol]
     move: list[Literal["L", "R", "S"]]
+
+
+class GroupedTransition(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    source: State | None = Field(default=None, alias="from")
+    read: list[Symbol]
+    to: State
+    write: list[Symbol]
+    move: list[Literal["L", "R", "S"]]
+
+
+GroupedTransitions = dict[State, list[GroupedTransition]]
+grouped_adapter = TypeAdapter(GroupedTransitions)
+
+
+def normalize_transitions(value, info: ValidationInfo):
+    """Convert grouped YAML to the flat representation used by the runtime."""
+    if not isinstance(value, dict):
+        return value
+    groups = grouped_adapter.validate_python(value, strict=True)
+    errors, transitions = [], []
+    for state, rules in groups.items():
+        # Even empty groups must refer to a declared state.
+        if "states" in info.data and state not in info.data["states"]:
+            errors.append({"type": "value_error", "loc": (state,), "input": state,
+                           "ctx": {"error": ValueError(f"Unknown state {state!r}")}})
+        for index, rule in enumerate(rules):
+            if rule.source is not None and rule.source != state:
+                errors.append({"type": "value_error", "loc": (state, index, "from"), "input": rule.source,
+                               "ctx": {"error": ValueError(f"from must match outer state {state!r}")}})
+            transitions.append(Transition.model_validate({**rule.model_dump(by_alias=True), "from": state}))
+    if errors:
+        raise ValidationError.from_exception_data("GroupedTransitions", errors)
+    return transitions
+
+
+Transitions = Annotated[
+    list[Transition],
+    BeforeValidator(normalize_transitions, json_schema_input_type=list[Transition] | GroupedTransitions),
+]
 
 
 class MachineDefinition(BaseModel):
@@ -36,12 +79,16 @@ class MachineDefinition(BaseModel):
     accept: list[State]
     reject: list[State]
     inputs: list[str] | None = None
-    transitions: list[Transition]
+    transitions: Transitions
 
-    def create_machine(self, inputs: list[str] | None = None) -> MultiTapeTuringMachine:
+    def create_machine(self, inputs: list[str] | None = None, *,
+                       setup: InputDefinition | None = None) -> MultiTapeTuringMachine:
         if self.model != "deterministic":
             raise ValueError("Nondeterministic machines run with teocomp simulation, not as a single mtm machine.")
-        chosen = inputs if inputs is not None else self.inputs
+        if setup is not None and inputs is not None:
+            raise ValueError("Choose input strings or a tape setup, not both.")
+        prepared = setup.build_tapes(self) if setup is not None else None
+        chosen = [""] * self.tapes if prepared is not None else (inputs if inputs is not None else self.inputs)
         if chosen is None:
             chosen = [""] * self.tapes
         if len(chosen) != self.tapes:
@@ -50,7 +97,7 @@ class MachineDefinition(BaseModel):
             if not isinstance(value, str) or any(s not in self.input_alphabet for s in value):
                 raise ValueError(f"Tape {index + 1}: input must use only the input alphabet.")
         moves = {"L": -1, "R": 1, "S": 0}
-        return MultiTapeTuringMachine(
+        machine = MultiTapeTuringMachine(
             states=self.states, input_alphabet=self.input_alphabet,
             tape_alphabet=self.tape_alphabet, blank=self.blank,
             transitions={
@@ -60,6 +107,9 @@ class MachineDefinition(BaseModel):
             start_state=self.start, accept_states=self.accept, reject_states=self.reject,
             num_tapes=self.tapes, initial_inputs=chosen,
         )
+        if prepared is not None:
+            machine.tapes = prepared
+        return machine
 
 
 class UniqueKeyLoader(yaml.SafeLoader):
@@ -91,8 +141,8 @@ class DefinitionError(ValueError):
         super().__init__("\n".join(f"{d.line}:{d.column}: {d.message}" for d in diagnostics))
 
 
-def parse_definition(source: str) -> tuple[MachineDefinition, list[Diagnostic]]:
-    """Validate syntax, field types, and TM semantics; retain source locations."""
+def parse_yaml_model(source: str, model: type[BaseModel]):
+    """Validate a strict YAML model and retain locations for diagnostics."""
     try:
         root = yaml.compose(source, Loader=UniqueKeyLoader)
         data = yaml.load(source, Loader=UniqueKeyLoader)
@@ -104,10 +154,26 @@ def parse_definition(source: str) -> tuple[MachineDefinition, list[Diagnostic]]:
         )]) from error
 
     def diagnostic(message, path=(), severity="error"):
+        # Semantic checks use flat indices; map them back to the grouped YAML.
+        groups = data.get("transitions") if isinstance(data, dict) else None
+        if (isinstance(groups, dict) and len(path) > 1
+                and path[0] == "transitions" and isinstance(path[1], int)):
+            remaining = path[1]
+            for state, rules in groups.items():
+                if not isinstance(rules, list):
+                    continue
+                if remaining < len(rules):
+                    inferred_source = len(path) > 2 and path[2] == "from" and "from" not in rules[remaining]
+                    path = ("transitions", state) if inferred_source else ("transitions", state, remaining, *path[2:])
+                    break
+                remaining -= len(rules)
         node = root
-        for part in path:
+        for depth, part in enumerate(path):
             if isinstance(node, MappingNode):
-                node = next((v for k, v in node.value if k.value == str(part)), node)
+                pair = next(((k, v) for k, v in node.value if k.value == str(part)), None)
+                if pair is not None:
+                    # A diagnostic about an entire state group belongs on its key.
+                    node = pair[0] if depth == 1 and len(path) == 2 and path[0] == "transitions" else pair[1]
             elif isinstance(node, SequenceNode) and isinstance(part, int) and part < len(node.value):
                 node = node.value[part]
             else:
@@ -116,12 +182,19 @@ def parse_definition(source: str) -> tuple[MachineDefinition, list[Diagnostic]]:
         return Diagnostic(message, mark.line + 1 if mark else 1, mark.column + 1 if mark else 1, severity)
 
     try:
-        definition = MachineDefinition.model_validate(data)
+        definition = model.model_validate(data)
     except ValidationError as error:
         raise DefinitionError([
             diagnostic(f"{'.'.join(map(str, e['loc'])) or 'machine'}: {e['msg']}", e["loc"])
             for e in error.errors()
         ]) from error
+
+    return definition, diagnostic
+
+
+def parse_definition(source: str) -> tuple[MachineDefinition, list[Diagnostic]]:
+    """Validate syntax, field types, and TM semantics; retain source locations."""
+    definition, diagnostic = parse_yaml_model(source, MachineDefinition)
 
     issues = []
     states, symbols = set(definition.states), set(definition.tape_alphabet)

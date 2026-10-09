@@ -7,12 +7,12 @@ from mtm.tape import Tape
 from teocomp.definition import MachineDefinition
 
 
-def simulate(definition: MachineDefinition, inputs=None, max_steps=1000):
+def simulate(definition: MachineDefinition, inputs=None, max_steps=1000, *, setup=None):
     if type(max_steps) is not int or not 1 <= max_steps <= 10000:
         raise ValueError("max_steps must be an integer between 1 and 10000.")
     if definition.model == "nondeterministic":
-        return _simulate_nondeterministic(definition, inputs, max_steps)
-    machine = definition.create_machine(inputs)
+        return _simulate_nondeterministic(definition, inputs, max_steps, setup=setup)
+    machine = definition.create_machine(inputs, setup=setup)
 
     def snapshot():
         tapes = []
@@ -33,9 +33,12 @@ def simulate(definition: MachineDefinition, inputs=None, max_steps=1000):
     return {"status": status, "frames": frames, "configuration": machine.get_configuration()}
 
 
-def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations=10000):
+def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations=10000, *, setup=None):
     """Breadth-first search so any accepting computation is found first."""
-    chosen = inputs if inputs is not None else definition.inputs
+    if setup is not None and inputs is not None:
+        raise ValueError("Choose input strings or a tape setup, not both.")
+    prepared = setup.build_tapes(definition) if setup is not None else None
+    chosen = [""] * definition.tapes if prepared is not None else (inputs if inputs is not None else definition.inputs)
     if chosen is None:
         chosen = [""] * definition.tapes
     if len(chosen) != definition.tapes:
@@ -53,7 +56,7 @@ def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations
         return {"state": state, "step": step, "tapes": rendered}
 
     moves = {"L": -1, "R": 1, "S": 0}
-    tapes = [Tape(definition.blank, text) for text in chosen]
+    tapes = prepared if prepared is not None else [Tape(definition.blank, text) for text in chosen]
     records = [{"state": definition.start, "tapes": tapes, "step": 0, "parent": None}]
     queue = deque([0])
     seen = set()

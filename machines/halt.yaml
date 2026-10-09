@@ -1,0 +1,12 @@
+# No rules or terminal states: execution returns HALT. Quote # (YAML comment marker).
+name: Halt without a rule
+model: deterministic
+tapes: 1
+blank: "#"
+input_alphabet: []
+tape_alphabet: ["#"]
+states: [idle]
+start: idle
+accept: []
+reject: []
+transitions: []

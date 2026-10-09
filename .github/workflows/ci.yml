@@ -22,20 +22,20 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            editors/vscode/package-lock.json
       - name: Install Poetry
         run: pipx install poetry
-      - name: Install Python dependencies
-        run: poetry install --no-interaction
-      - name: Build diagram tools and VS Code extension
+      - name: Install dependencies and build diagram tools
+        run: make setup
+      - name: Package VS Code extension
+        run: make extension
+      - name: Verify generated YAML schemas
         run: |
-          npm ci
-          npm run build
-          npm run package:extension
-      - name: Verify generated machine schema
-        run: |
-          poetry run teocomp schema
-          git diff --exit-code -- schemas/machine.schema.json
+          make schemas
+          git diff --exit-code -- schemas/
       - name: Validate every example machine
-        run: for machine in machines/*.yaml; do poetry run teocomp check "$machine"; done
+        run: make check-all
       - name: Run Python checks
-        run: poetry run python -m unittest discover -s tests -v
+        run: make test

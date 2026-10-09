@@ -6,10 +6,23 @@ __pycache__/
 /output/
 .DS_Store
 node_modules/
-src/teocomp/web/assets/
+web/public/assets/
 .env
 .env.*
 !.env.example
 *.vsix
 .aws/
 .codex/
+
+# Personal definitions and starting tapes; keep only the shared examples.
+/machines/*
+!/machines/copy.yaml
+!/machines/single_tape.yaml
+!/machines/nondeterministic_contains_one.yaml
+!/machines/blank_writer.yaml
+!/machines/halt.yaml
+!/machines/loop.yaml
+/inputs/*
+!/inputs/copy.yaml
+!/inputs/binary.yaml
+!/inputs/copy_preloaded.yaml

@@ -4,8 +4,8 @@
     {
       "label": "Teocomp: Export active machine SVG",
       "type": "process",
-      "command": "poetry",
-      "args": ["run", "teocomp", "graph", "${file}", "--output", "${workspaceFolder}/output/${fileBasenameNoExtension}.svg"],
+      "command": "make",
+      "args": ["graph", "MACHINE=${file}", "OUTPUT=${workspaceFolder}/output/${fileBasenameNoExtension}.svg"],
       "options": {"cwd": "${workspaceFolder}"},
       "problemMatcher": []
     }

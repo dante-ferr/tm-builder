@@ -1,0 +1,3 @@
+# Shared by single_tape.yaml and nondeterministic_contains_one.yaml; quote digits.
+tapes:
+  - contents: "00101"

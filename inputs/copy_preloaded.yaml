@@ -1,0 +1,7 @@
+# Tape-only _ and independent heads; preloaded bb stays outside the copied range.
+tapes:
+  - contents: "abba"
+    origin: -2
+    head: -2
+  - contents: "_bb"
+    head: 4

@@ -7,7 +7,7 @@ exports.run = async () => {
   const report = process.env.TEOCOMP_TEST_REPORT;
   try {
     const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
-    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(root, 'tests/fixtures/machines/copy.yaml')));
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(root, 'python/tests/fixtures/machines/copy.yaml')));
     await vscode.window.showTextDocument(document);
     const extension = vscode.extensions.getExtension('teocomp-local.teocomp-machines');
     assert.ok(extension, 'Development extension is registered');

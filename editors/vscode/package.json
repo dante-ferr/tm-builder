@@ -2,22 +2,54 @@
   "name": "teocomp-machines",
   "displayName": "Teocomp Turing Machines",
   "description": "Live type and semantic diagnostics for Teocomp machine YAML files",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "teocomp-local",
   "license": "UNLICENSED",
-  "engines": {"vscode": "^1.85.0"},
-  "categories": ["Programming Languages"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
   "main": "./extension.cjs",
-  "activationEvents": ["onLanguage:yaml", "onLanguage:plaintext"],
-  "capabilities": {"untrustedWorkspaces": {"supported": false}},
+  "activationEvents": [
+    "onLanguage:yaml",
+    "onLanguage:plaintext"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
   "contributes": {
     "configuration": {
       "title": "Teocomp",
       "properties": {
-        "teocomp.pythonPath": {"type": "string", "default": "", "description": "Python interpreter containing teocomp; empty uses this workspace's .venv."},
-        "teocomp.previewPort": {"type": "integer", "default": 8765, "minimum": 1, "maximum": 65535, "description": "Port of the local diagram viewer."}
+        "teocomp.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python interpreter containing teocomp; empty uses this workspace's python/.venv."
+        },
+        "teocomp.previewPort": {
+          "type": "integer",
+          "default": 8765,
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port of the local diagram viewer."
+        }
       }
     },
-    "commands": [{"command": "teocomp.preview", "title": "Teocomp: Preview Machine Diagram"}]
+    "commands": [
+      {
+        "command": "teocomp.preview",
+        "title": "Teocomp: Preview Machine Diagram"
+      }
+    ]
+  },
+  "scripts": {
+    "package": "mkdir -p ../../dist && vsce package --out ../../dist/teocomp-vscode.vsix --allow-missing-repository --no-dependencies"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.0.0"
   }
 }

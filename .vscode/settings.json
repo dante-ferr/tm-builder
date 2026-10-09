@@ -1,5 +1,8 @@
 {
-  "yaml.schemas": {"./schemas/machine.schema.json": ["machines/**/*.yaml", "machines/**/*.yml"]},
+  "yaml.schemas": {
+    "./schemas/machine.schema.json": ["machines/**/*.yaml", "machines/**/*.yml"],
+    "./schemas/inputs.schema.json": ["inputs/**/*.yaml", "inputs/**/*.yml"]
+  },
   "yaml.validate": true,
   "yaml.completion": true
 }

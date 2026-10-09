@@ -10,8 +10,18 @@ from teocomp.diagram import machine_diagram
 from teocomp.simulation import simulate
 
 SOURCE = (Path(__file__).resolve().parent / 'fixtures/machines/copy.yaml').read_text()
-SINGLE = (Path(__file__).resolve().parents[1] / 'machines/single_tape.yaml').read_text()
-NONDETERMINISTIC = (Path(__file__).resolve().parents[1] / 'machines/nondeterministic_contains_one.yaml').read_text()
+SINGLE = (Path(__file__).resolve().parent / 'fixtures/machines/single_tape.yaml').read_text()
+NONDETERMINISTIC = (Path(__file__).resolve().parent / 'fixtures/machines/nondeterministic_contains_one.yaml').read_text()
+
+
+def grouped_source(source):
+    data = yaml.safe_load(source)
+    groups = {}
+    for transition in data['transitions']:
+        state = transition.pop('from')
+        groups.setdefault(state, []).append(transition)
+    data['transitions'] = groups
+    return yaml.safe_dump(data, sort_keys=False)
 
 
 class MachineTests(unittest.TestCase):
@@ -21,6 +31,44 @@ class MachineTests(unittest.TestCase):
         self.assertIn(message, str(caught.exception))
         self.assertTrue(all(d.line >= 1 and d.column >= 1 for d in caught.exception.diagnostics))
         return caught.exception
+
+    def test_grouped_transitions_render_and_run_like_flat_transitions(self):
+        flat, _ = parse_definition(SOURCE)
+        grouped, warnings = parse_definition(grouped_source(SOURCE))
+        self.assertEqual(warnings, [])
+        self.assertEqual(grouped.transitions, flat.transitions)
+        self.assertEqual(machine_diagram(grouped).source, machine_diagram(flat).source)
+        self.assertEqual(simulate(grouped, ['abba', '']), simulate(flat, ['abba', '']))
+
+    def test_grouped_flow_mapping_and_optional_from(self):
+        prefix = SOURCE[:SOURCE.index('transitions:')]
+        source = prefix + 'transitions: {copy: [{from: copy, read: [_, _], to: accept, write: [_, _], move: [S, S]}]}\n'
+        definition, _ = parse_definition(source)
+        self.assertEqual(simulate(definition, ['', ''])['status'], 'ACCEPT')
+        self.assert_invalid(source.replace('from: copy', 'from: accept'), "from must match outer state 'copy'")
+
+    def test_grouped_nondeterministic_rules(self):
+        definition, _ = parse_definition(grouped_source(NONDETERMINISTIC))
+        self.assertEqual(simulate(definition, ['00100'])['status'], 'ACCEPT')
+        self.assert_invalid(grouped_source(NONDETERMINISTIC).replace('model: nondeterministic', 'model: deterministic'),
+                            'Duplicate rule')
+
+    def test_grouped_unknown_empty_state_and_missing_fields(self):
+        prefix = SOURCE[:SOURCE.index('transitions:')]
+        self.assert_invalid(prefix + 'transitions: {typo: []}\n', "Unknown state 'typo'")
+        for field in ('read', 'to', 'write', 'move'):
+            with self.subTest(field=field):
+                data = yaml.safe_load(grouped_source(SOURCE))
+                del data['transitions']['copy'][0][field]
+                self.assert_invalid(yaml.safe_dump(data), f'transitions.copy.0.{field}: Field required')
+        self.assert_invalid(prefix + 'transitions: {copy: [{read: [a, _], to: copy, write: [a, a], move: [UP, R]}]}\n',
+                            "'L', 'R' or 'S'")
+        self.assert_invalid(prefix + 'transitions: {copy: {}, accept: []}\n', 'valid list')
+
+    def test_grouped_empty_mapping_is_valid(self):
+        definition, _ = parse_definition(SOURCE[:SOURCE.index('transitions:')] + 'transitions: {}\n')
+        self.assertEqual(definition.transitions, [])
+        self.assertEqual(simulate(definition, ['', ''])['status'], 'HALT')
 
     def test_missing_machine_fields_are_rejected(self):
         data = yaml.safe_load(SOURCE)

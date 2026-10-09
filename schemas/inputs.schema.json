@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "TapeSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "contents": {
+          "description": "Tape symbols, in cell order; quote numeric strings.",
+          "title": "Contents",
+          "type": "string"
+        },
+        "origin": {
+          "default": 0,
+          "description": "Cell index of the first character in contents.",
+          "title": "Origin",
+          "type": "integer"
+        },
+        "head": {
+          "default": 0,
+          "description": "Initial head cell index.",
+          "title": "Head",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contents"
+      ],
+      "title": "TapeSetup",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "tapes": {
+      "description": "Tape setups in order. Omitted trailing tapes start blank.",
+      "items": {
+        "$ref": "#/$defs/TapeSetup"
+      },
+      "title": "Tapes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "tapes"
+  ],
+  "title": "InputDefinition",
+  "type": "object"
+}

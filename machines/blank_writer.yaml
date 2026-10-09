@@ -1,0 +1,23 @@
+# No input: write x at cells 0 and -1. Expanded grouped rules show every field.
+name: Write on blank tape
+model: deterministic
+tapes: 1
+blank: _
+input_alphabet: []
+tape_alphabet: [_, x]
+states: [write, finish, accept]
+start: write
+accept: [accept]
+reject: []
+transitions:
+  write:
+    - read: [_]
+      to: finish
+      write: [x]
+      move: [L]
+  finish:
+    - read: [_]
+      to: accept
+      write: [x]
+      move: [S]
+  accept: []

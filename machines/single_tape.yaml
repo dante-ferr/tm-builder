@@ -1,22 +1,23 @@
-# Deterministic single-tape machine: accept strings ending in 1.
+# Accept binary strings ending in 1. Flow groups infer from; an explicit match is allowed.
 name: Ends with one
 model: deterministic
 tapes: 1
 blank: _
 input_alphabet: ["0", "1"]
 tape_alphabet: ["0", "1", _]
-states: [scan, last_zero, last_one, accept, reject]
+states: [scan, last_one, accept, reject]
 start: scan
 accept: [accept]
 reject: [reject]
-inputs: ["101"]
-transitions:
-  - {from: scan, read: ["0"], to: last_zero, write: ["0"], move: [R]}
-  - {from: scan, read: ["1"], to: last_one, write: ["1"], move: [R]}
-  - {from: last_zero, read: ["0"], to: last_zero, write: ["0"], move: [R]}
-  - {from: last_zero, read: ["1"], to: last_one, write: ["1"], move: [R]}
-  - {from: last_one, read: ["0"], to: last_zero, write: ["0"], move: [R]}
-  - {from: last_one, read: ["1"], to: last_one, write: ["1"], move: [R]}
-  - {from: last_zero, read: [_], to: reject, write: [_], move: [S]}
-  - {from: last_one, read: [_], to: accept, write: [_], move: [S]}
-  - {from: scan, read: [_], to: reject, write: [_], move: [S]}
+transitions: {
+  scan: [
+    {from: scan, read: ["0"], to: scan, write: ["0"], move: [R]},
+    {read: ["1"], to: last_one, write: ["1"], move: [R]},
+    {read: [_], to: reject, write: [_], move: [S]}
+  ],
+  last_one: [
+    {read: ["0"], to: scan, write: ["0"], move: [R]},
+    {read: ["1"], to: last_one, write: ["1"], move: [R]},
+    {read: [_], to: accept, write: [_], move: [S]}
+  ]
+}
