@@ -1,7 +1,10 @@
 import {instance} from '@viz-js/viz';
+import {mountGraphNavigation} from './graph-navigation';
 export function mountViewer(root) {
   const $ = id => root.querySelector(`#${id}`);
   const lifetime = new AbortController();
+  const graphNavigation = mountGraphNavigation($('graph'), lifetime.signal);
+  const {fit, zoom} = graphNavigation;
   const fetch = (url, options = {}) => window.fetch(url, {...options, signal: lifetime.signal});
   let disposed = false;
   const timers = new Set();
@@ -12,21 +15,9 @@ export function mountViewer(root) {
     return id;
   }
   const renderer = instance();
-  let revision = null, svg = null, filename = 'machine', scale = 1;
+  let revision = null, svg = null, filename = 'machine';
   let library = {machines: [], inputs: []}, selectionVersion = 0, selectionBusy = false, inputRequest = 0, selectedMachine = '';
   let machine = null, trace = null, position = 0, phase = 0, timer = null, request = 0;
-  function fit() {
-    if (!svg) return;
-    const {width, height} = svg.viewBox.baseVal;
-    scale = Math.min(2, Math.max(.05, Math.min(($('graph').clientWidth - 60) / width, ($('graph').clientHeight - 60) / height)));
-    zoom(1);
-  }
-  function zoom(factor) {
-    if (!svg) return;
-    scale = Math.max(.02, Math.min(20, scale * factor));
-    svg.style.width = `${svg.viewBox.baseVal.width * scale}px`;
-    svg.style.height = `${svg.viewBox.baseVal.height * scale}px`;
-  }
   async function refresh() {
     const version = selectionVersion;
     try {
@@ -65,7 +56,7 @@ export function mountViewer(root) {
       $('download').disabled = false;
       revision = result.revision;
       $('run').disabled = false;
-      fit();
+      graphNavigation.setDiagram(svg);
     } catch (error) {
       if (disposed || version !== selectionVersion) return;
       $('status').textContent = error.message;
@@ -390,6 +381,7 @@ export function mountViewer(root) {
   refresh();
   return () => {
     disposed = true;
+    graphNavigation.stopPan();
     lifetime.abort();
     for (const id of timers) clearTimeout(id);
     clearTimeout(timer);

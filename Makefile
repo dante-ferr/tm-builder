@@ -86,6 +86,7 @@ schemas:
 	$(TM_BUILDER) schema --kind inputs
 
 test: build
+	node --test web/tests/*.test.js
 	$(PYTHON) python -m unittest discover -s python/tests -v
 	$(MAKE) test-extension
 

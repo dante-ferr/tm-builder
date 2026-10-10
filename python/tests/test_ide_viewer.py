@@ -1,6 +1,7 @@
 """IDE buffers, diagram updates, and export regression checks."""
 
 from pathlib import Path
+import os
 import tempfile
 import time
 import unittest
@@ -10,11 +11,37 @@ import xml.etree.ElementTree as ET
 import yaml
 
 from tm_builder.definition import parse_definition
-from tm_builder.designer import DiagramSource
+from tm_builder.designer import DiagramSource, ensure_assets
 from tm_builder.export import export_diagram
 from tm_builder.ide import inspect_source
 
 SOURCE = (Path(__file__).resolve().parent / 'fixtures/machines/copy.yaml').read_text()
+
+
+class ViewerAssetTests(unittest.TestCase):
+    def test_source_edits_rebuild_existing_viewer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            web = Path(directory)
+            for name in ('out/index.html', 'public/assets/render.cjs',
+                         'src/viewer.js', 'app/globals.css'):
+                path = web / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('fixture')
+                os.utime(path, ns=(1_000_000_000, 1_000_000_000))
+            with (patch('tm_builder.designer.WEB_PROJECT', web),
+                  patch('tm_builder.designer.WEB', web / 'public'),
+                  patch('tm_builder.designer.WEB_OUT', web / 'out'),
+                  patch('tm_builder.designer.shutil.which', return_value='npm'),
+                  patch('tm_builder.designer.subprocess.run') as run):
+                ensure_assets()
+                run.assert_not_called()
+                for source in ('src/viewer.js', 'app/globals.css'):
+                    with self.subTest(source=source):
+                        os.utime(web / source, ns=(2_000_000_000, 2_000_000_000))
+                        ensure_assets()
+                        self.assertEqual(run.call_args.args[0], ['npm', 'run', 'build'])
+                        run.reset_mock()
+                        os.utime(web / source, ns=(1_000_000_000, 1_000_000_000))
 
 
 class IDEViewerTests(unittest.TestCase):

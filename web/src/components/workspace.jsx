@@ -71,8 +71,8 @@ export default function Workspace({theme, onCycleTheme}) {
 
         <div className="workspace-content">
           <section className="graph-panel" aria-label="State graph">
-            <div className="panel-heading"><div><p className="eyebrow">VISUALIZATION</p><h2>STATE GRAPH</h2></div><span className="live-pill"><span className="live-dot"></span>Live view</span></div>
-            <div id="graph" className="graph-canvas" aria-label="Rendered machine diagram"><div className="graph-empty"><span className="empty-orbit" aria-hidden="true"><i></i><i></i><i></i></span><strong>Your state graph will appear here</strong><span>Choose a machine from the library to begin.</span></div></div>
+            <div className="panel-heading"><div><p className="eyebrow">VISUALIZATION</p><h2>STATE GRAPH</h2><p id="graph-help" className="graph-help">Scroll to zoom · Middle mouse drag to pan · Click graph for WASD / arrows</p></div><span className="live-pill"><span className="live-dot"></span>Live view</span></div>
+            <div id="graph" className="graph-canvas" aria-label="Rendered machine diagram" aria-describedby="graph-help" tabIndex={0}><div className="graph-empty"><span className="empty-orbit" aria-hidden="true"><i></i><i></i><i></i></span><strong>Your state graph will appear here</strong><span>Choose a machine from the library to begin.</span></div></div>
           </section>
 
           <section id="debugger" className="playback-panel" aria-label="Machine debugger">

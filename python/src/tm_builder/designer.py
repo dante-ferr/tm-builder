@@ -27,11 +27,18 @@ WEB_OUT = WEB_PROJECT / 'out'
 
 def ensure_assets():
     if (WEB_OUT / 'index.html').is_file() and (WEB / 'assets/render.cjs').is_file():
-        return
+        built_at = min((WEB_OUT / 'index.html').stat().st_mtime_ns,
+                       (WEB / 'assets/render.cjs').stat().st_mtime_ns)
+        sources = [WEB_PROJECT / name for name in
+                   ('package.json', 'package-lock.json', 'next.config.mjs')]
+        for folder in ('app', 'src'):
+            sources.extend(path for path in (WEB_PROJECT / folder).rglob('*') if path.is_file())
+        if all(not path.exists() or path.stat().st_mtime_ns <= built_at for path in sources):
+            return
     npm = shutil.which('npm')
     if not npm:
         raise RuntimeError('Install Node.js/npm, then run this command again.')
-    print('Building diagram tools (first launch only)…', flush=True)
+    print('Building diagram tools…', flush=True)
     try:
         subprocess.run([npm, 'ci', '--no-audit', '--no-fund'], cwd=WEB_PROJECT, check=True)
         subprocess.run([npm, 'run', 'build'], cwd=WEB_PROJECT, check=True)
