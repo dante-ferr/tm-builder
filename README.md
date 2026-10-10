@@ -1,141 +1,82 @@
 # tm-builder
 
-Define Turing machines in YAML, validate them in VS Code, view diagrams, and
-run deterministic or nondeterministic machines with one or more tapes.
+Define, validate, visualize, and run deterministic or nondeterministic Turing
+machines in YAML.
 
 ## Setup
-
-From the project root:
 
 ```bash
 make setup
 make install-extension
 ```
 
-Open the root folder in VS Code and install the recommended Red Hat YAML
-extension. The extension uses `python/.venv`; set `tm-builder.pythonPath` to use
-another Python interpreter.
+Setup installs dependencies and creates `~/Documents/TM Builder/`, seeding its
+`machines/` and `inputs/` folders with examples. Existing files are preserved.
+Open that folder in VS Code to edit machines. Set `TM_BUILDER_WORKSPACE` to use
+another location. For VS Code diagnostics, set `tm-builder.projectPath` to this
+repository if the extension cannot find its Python environment.
 
-Formal table images need system software that Python and npm cannot install as
-project dependencies. On Arch, Debian/Ubuntu, or Fedora Linux, install it with:
-
-```bash
-make setup-formal
-```
-
-This uses the OS package manager and may prompt for `sudo`. It installs TeX
-fonts and a system font for accented characters too. Other systems need TeX
-Live (LuaLaTeX or XeLaTeX, LaTeX packages, and Latin Modern fonts) and Poppler's
-`pdftoppm` on `PATH`. This setup is only needed for formal PNG exports; readable
-images, CSV, and LaTeX source exports do not need TeX Live.
+Formal PNG table export also needs TeX and Poppler system packages; run
+`make setup-formal` on supported Linux distributions.
 
 ## Commands
 
-| Command | Action |
+| Command | Purpose |
 | --- | --- |
-| `make view` | Open the viewer and debugger |
-| `make dev` | Run the viewer with live code reload |
-| `make check` | Validate a machine |
-| `make run` | Run with blank tapes |
-| `make run INPUTS=inputs/copy.yaml` | Run with a tape setup |
-| `make graph` | Export SVG |
-| `make table` | Export readable PNG pieces |
+| `make view` | Open the machine picker and debugger |
+| `make check` / `make run` | Validate or run the default machine |
+| `make graph` / `make table` | Export a diagram or transition table |
+| `make dev` | Run the web UI with live reload |
 | `make test` | Run project checks |
 
-Commands use `machines/copy.yaml` by default. Set `MACHINE=...` to choose a
-machine. `make` lists all commands. For example:
+Choose files with `MACHINE=...` and `INPUTS=...`, for example:
 
 ```bash
-make run MACHINE=machines/single_tape.yaml INPUTS=inputs/binary.yaml
+make run MACHINE=single_tape.yaml INPUTS=binary.yaml
 ```
 
-For web development, run `make dev`. It starts the Python API and Next.js
-development server together and opens the viewer at `http://127.0.0.1:3000`.
-Stop both servers with Ctrl+C. Set `DEV_PORT` or `PORT` to change the web or API
-port. `make view` continues to serve the built static viewer.
+See the [command guide](docs/src/tm-builder/commands.md) for options, defaults,
+and export details.
 
-## Transition tables
-
-Choose `FORMAT=csv|image|tex`, `STYLE=readable|formal`, `LANGUAGE=english|portuguese`,
-and `LAYOUT=split|long`.
-Defaults are `image`, `readable`, and `split`. Split images fit A4 and break
-between rows; long images use one continuous page. Set `DPI` from 72 to 600.
-
-```bash
-make table FORMAT=image STYLE=readable
-make table FORMAT=image STYLE=formal LAYOUT=long
-make table FORMAT=csv STYLE=formal
-make table FORMAT=image STYLE=readable LANGUAGE=portuguese
-```
-
-Readable tables list source, read, next, write, and move. Formal tables show
-`(q, a)` and `δ(q, a)`; nondeterministic results are grouped into sets. Formal
-CSV contains LaTeX text. `FORMAT=tex` saves LaTeX source without compiling it.
-Outputs go under `output/` by default; set `OUTPUT=...` to choose a path.
-
-The viewer's **Export table…** menu offers the same options. Multiple image
-pieces download as a ZIP.
+User files live outside the application repository, so the workspace can be a
+Git repository for your group. Initialize Git there and add a shared remote, or
+point `TM_BUILDER_WORKSPACE` at an existing clone. The viewer starts with a
+machine picker; CLI commands that need a machine default to `copy.yaml`.
 
 ## Examples
 
-Machine files go in `machines/`; tape setups go in `inputs/`. Bundled examples
-are tracked; personal files in these folders are ignored.
+Bundled examples live in `data/examples/` and are copied to a new workspace.
 
 | Machine | Demonstrates | Setup |
 | --- | --- | --- |
-| [copy](machines/copy.yaml) | Multiple tapes, flat transitions, `R` and `S` | [copy](inputs/copy.yaml), [preloaded](inputs/copy_preloaded.yaml) |
-| [single_tape](machines/single_tape.yaml) | Grouped transitions, quoted symbols, rejection | [binary](inputs/binary.yaml) |
-| [nondeterministic_contains_one](machines/nondeterministic_contains_one.yaml) | Nondeterministic rules | [binary](inputs/binary.yaml) |
-| [blank_writer](machines/blank_writer.yaml) | Empty input alphabet, `L` | — |
-| [halt](machines/halt.yaml) | Custom blank, empty rules and terminal sets | — |
-| [loop](machines/loop.yaml) | Self-loop and step limits | — |
+| [copy](data/examples/machines/copy.yaml) | Multiple tapes and flat rules | [copy](data/examples/inputs/copy.yaml), [preloaded](data/examples/inputs/copy_preloaded.yaml) |
+| [single_tape](data/examples/machines/single_tape.yaml) | Grouped rules, quoted symbols, rejection | [binary](data/examples/inputs/binary.yaml) |
+| [nondeterministic_contains_one](data/examples/machines/nondeterministic_contains_one.yaml) | Nondeterministic rules | [binary](data/examples/inputs/binary.yaml) |
+| [blank_writer](data/examples/machines/blank_writer.yaml) | Empty input alphabet | — |
+| [halt](data/examples/machines/halt.yaml) | Custom blank and terminal states | — |
+| [loop](data/examples/machines/loop.yaml) | Self-loop and step limits | — |
 
-## YAML syntax
+## YAML
 
-Start with [machines/copy.yaml](machines/copy.yaml). Required fields are
-`name`, `model`, `tapes`, `blank`, `input_alphabet`, `tape_alphabet`, `states`,
-`start`, `accept`, `reject`, and `transitions`. Set `model` to `deterministic`
-or `nondeterministic`. Empty lists use `[]`.
+Machine YAML requires `name`, `model`, `tapes`, `blank`, `input_alphabet`,
+`tape_alphabet`, `states`, `start`, `accept`, `reject`, and `transitions`.
+`model` is `deterministic` or `nondeterministic`. Each transition has one
+`[read, write, move]` triple per tape; moves are `L`, `R`, or `S`. Rules can be
+flat or grouped by source state. Symbols are single characters; quote YAML
+values that could be read as numbers or booleans. See [the copy example](data/examples/machines/copy.yaml).
 
-Each rule has a source state, one `[read, write, move]` triple per tape, and a
-destination state. Moves are `L`, `R`, or `S`. Rules can be flat:
-
-```yaml
-- {from: copy, tapes: [[a, a, R], [_, a, R]], to: copy}
-```
-
-Or grouped by source state, where `from` is inferred:
-
-```yaml
-transitions:
-  copy:
-    - {tapes: [[a, a, R], [_, a, R]], to: copy}
-```
-
-Block-style YAML is supported too. Symbols are single characters; quote values
-that YAML might read as numbers or booleans.
-
-## Tape setups
-
-Setup files contain one entry per tape. `origin` and `head` default to zero:
+Input YAML has a `tapes` list. Each entry has `contents` and optional `origin`
+and `head` positions, which default to zero. Omitted trailing tapes start blank.
 
 ```yaml
 tapes:
   - contents: "abba"
     origin: 0
     head: 0
-  - contents: ""
 ```
-
-Omitted trailing tapes start blank. Without a setup, all tapes start blank.
-Direct `--input` strings use the input alphabet and cannot be combined with a
-setup file.
 
 ## Development
 
-Use Node.js 20.9 or newer. `make setup` installs project dependencies;
-`make build` builds the web UI. See [CONTRIBUTING.md](CONTRIBUTING.md) for
-development checks and [web/README.md](web/README.md) for web-specific details.
-
-Simulation uses [multitape-tm](https://pypi.org/project/multitape-tm/);
-diagrams use [Viz.js](https://viz-js.com/api/). Licensed under [Apache-2.0](LICENSE).
+Use Node.js 20.9 or newer. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and
+[web/README.md](web/README.md) for web details. Licensed under
+[Apache-2.0](LICENSE).

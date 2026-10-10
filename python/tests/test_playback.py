@@ -13,11 +13,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class PlaybackTests(unittest.TestCase):
     def load(self, name):
-        return parse_definition((ROOT / 'machines' / name).read_text())[0]
+        return parse_definition((ROOT / 'data/examples/machines' / name).read_text())[0]
 
     def test_rule_trace_matches_writes_and_head_moves(self):
         definition = self.load('copy.yaml')
-        setup = parse_inputs((ROOT / 'inputs/copy_preloaded.yaml').read_text(), definition)
+        setup = parse_inputs((ROOT / 'data/examples/inputs/copy_preloaded.yaml').read_text(), definition)
         result = simulate(definition, setup=setup)
         self.assertEqual(result['status'], 'ACCEPT')
         self.assertNotIn('transition', result['frames'][0])
@@ -54,7 +54,7 @@ class PlaybackTests(unittest.TestCase):
     def test_execute_current_buffer_and_reject_stale_revision(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'machine.yaml'
-            text = (ROOT / 'machines/copy.yaml').read_text()
+            text = (ROOT / 'data/examples/machines/copy.yaml').read_text()
             path.write_text(text)
             viewer = DiagramSource(path)
             saved = viewer.snapshot()
@@ -72,7 +72,7 @@ class PlaybackTests(unittest.TestCase):
                 viewer.simulation({'revision': viewer.snapshot()['revision']})
 
     def test_invalid_setup_and_limits(self):
-        viewer = DiagramSource(ROOT / 'machines/copy.yaml')
+        viewer = DiagramSource(ROOT / 'data/examples/machines/copy.yaml')
         revision = viewer.snapshot()['revision']
         for limit in (0, 10001, True, 1.5):
             with self.subTest(limit=limit), self.assertRaises(ValueError):

@@ -7,6 +7,7 @@ from pathlib import Path
 from tm_builder.definition import DefinitionError, MachineDefinition, parse_definition
 from tm_builder.simulation import simulate
 from tm_builder.inputs import InputDefinition, parse_inputs
+from tm_builder.workspace import ensure_workspace
 
 
 def main() -> None:
@@ -20,7 +21,7 @@ def main() -> None:
                             ("graph", "Render a YAML machine to SVG or DOT"),
                             ("table", "Export transitions to LaTeX and optional A4 PNG pages")):
         cmd = commands.add_parser(name, help=help_text)
-        cmd.add_argument("machine", nargs="?", default="machines/copy.yaml")
+        cmd.add_argument("machine", nargs="?", type=Path)
         if name == "run":
             inputs = cmd.add_mutually_exclusive_group()
             inputs.add_argument("--input", nargs="+", help="One input-alphabet string per tape, e.g. --input abba ''")
@@ -42,6 +43,7 @@ def main() -> None:
     schema = commands.add_parser("schema", help="Generate the YAML editor JSON schema")
     schema.add_argument("--output", help="Output path (defaults to schemas/<kind>.schema.json)")
     schema.add_argument("--kind", choices=("machine", "inputs"), default="machine")
+    commands.add_parser("workspace", help="Create the user workspace and print its location")
     args = parser.parse_args()
     try:
         if args.command in (None, "design", "view"):
@@ -54,8 +56,16 @@ def main() -> None:
             model = InputDefinition if args.kind == "inputs" else MachineDefinition
             target.write_text(json.dumps(model.model_json_schema(), indent=2) + "\n")
             print(target)
+        elif args.command == "workspace":
+            print(ensure_workspace())
         else:
-            definition, warnings = parse_definition(Path(args.machine).read_text())
+            workspace = ensure_workspace()
+            machine = args.machine or (workspace / "machines/copy.yaml")
+            if args.machine is not None and not machine.exists() and not machine.is_absolute():
+                candidate = workspace / "machines" / machine.name
+                if candidate.exists():
+                    machine = candidate
+            definition, warnings = parse_definition(machine.read_text())
             for warning in warnings:
                 print(f"Warning {warning.line}:{warning.column}: {warning.message}")
             if args.command == "check":
@@ -66,7 +76,12 @@ def main() -> None:
                 setup = InputDefinition(tapes=[]) if args.input is None else None
                 if args.inputs_file is not None:
                     try:
-                        setup = parse_inputs(args.inputs_file.read_text(), definition)
+                        input_path = args.inputs_file
+                        if not input_path.exists() and not input_path.is_absolute():
+                            candidate = workspace / "inputs" / input_path.name
+                            if candidate.exists():
+                                input_path = candidate
+                        setup = parse_inputs(input_path.read_text(), definition)
                     except DefinitionError as error:
                         raise ValueError(f"{args.inputs_file}: {error}") from error
                 result = simulate(definition, args.input, args.max_steps, setup=setup)
@@ -79,7 +94,7 @@ def main() -> None:
                 from tm_builder.table import export_table
                 format = args.format or (None if args.output else "image")
                 extension = "png" if format == "image" else format
-                output = Path(args.output or f"output/{Path(args.machine).stem}-{args.style}.{extension}")
+                output = Path(args.output or f"output/{machine.stem}-{args.style}.{extension}")
                 for target in export_table(definition, output, format=format, style=args.style,
                                            layout=args.layout, split_a4=args.split_a4, dpi=args.dpi,
                                            language=args.language):

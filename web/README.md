@@ -31,8 +31,8 @@ following again when playback resumes. Other controls and graph resizing preserv
 following during playback.
 
 Without a machine argument, the viewer starts at the machine picker. `/api/library`
-lists the project’s `machines/` and `inputs/` YAML files; bundled examples are
-identified by the explicit `.gitignore` allowlist. The shared Hide examples
+lists the user workspace’s `machines/` and `inputs/` YAML files; bundled examples are
+identified by the explicit `.gitignore` allowlist in `data/examples/`. The shared Hide examples
 checkbox filters both pickers. `/api/machine` selects a library machine or loads
 an imported file in memory; `/api/input` reads a library input into the setup editor.
 

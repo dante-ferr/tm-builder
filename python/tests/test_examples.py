@@ -12,12 +12,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ExampleTests(unittest.TestCase):
     def load(self, filename):
-        definition, warnings = parse_definition((ROOT / 'machines' / filename).read_text())
+        definition, warnings = parse_definition((ROOT / 'data/examples/machines' / filename).read_text())
         self.assertEqual(warnings, [], filename)
         return definition
 
     def setup(self, filename, definition):
-        return parse_inputs((ROOT / 'inputs' / filename).read_text(), definition)
+        return parse_inputs((ROOT / 'data/examples/inputs' / filename).read_text(), definition)
 
     def test_copy_examples(self):
         definition = self.load('copy.yaml')

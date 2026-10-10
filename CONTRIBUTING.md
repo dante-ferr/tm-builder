@@ -1,8 +1,8 @@
 # Contributing
 
 Contributions that improve machine definitions, correctness, and course usability
-are welcome. Bundled examples under `machines/` and `inputs/` are listed in the
-README and allowlisted in `.gitignore`; other files there are local and ignored.
+are welcome. Bundled examples under `data/examples/machines/` and
+`data/examples/inputs/` are listed in the README and allowlisted in `.gitignore`.
 Keep examples focused on distinct syntax features. Put regression fixtures under
 `python/tests/fixtures/` and keep the README aligned with implemented behavior.
 

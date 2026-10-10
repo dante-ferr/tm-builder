@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const {spawn} = require('node:child_process');
 const http = require('node:http');
 const path = require('node:path');
+const fs = require('node:fs');
 
 function activate(context) {
   const diagnostics = vscode.languages.createDiagnosticCollection('tm-builder');
@@ -13,8 +14,18 @@ function activate(context) {
     document.fileName.split(path.sep).includes('machines') &&
     vscode.workspace.getWorkspaceFolder(document.uri);
   const config = uri => vscode.workspace.getConfiguration('tm-builder', uri);
+  function projectRoot(document) {
+    const configured = config(document.uri).get('projectPath');
+    if (configured) return path.resolve(configured);
+    const roots = (vscode.workspace.workspaceFolders || []).map(folder => folder.uri.fsPath);
+    const matching = roots.find(root => fs.existsSync(path.join(root, 'python', '.venv')));
+    if (matching) return matching;
+    const extensionProject = path.resolve(context.extensionPath, '..', '..');
+    if (fs.existsSync(path.join(extensionProject, 'python', '.venv'))) return extensionProject;
+    return roots[0] || path.dirname(document.fileName);
+  }
   function interpreter(document) {
-    const root = vscode.workspace.getWorkspaceFolder(document.uri).uri.fsPath;
+    const root = projectRoot(document);
     const configured = config(document.uri).get('pythonPath');
     return configured ? (path.isAbsolute(configured) ? configured : path.join(root, configured)) :
       path.join(root, 'python', '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');

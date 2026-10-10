@@ -30,6 +30,11 @@
           "default": "",
           "description": "Python interpreter containing tm-builder; empty uses this workspace's python/.venv."
         },
+        "tm-builder.projectPath": {
+          "type": "string",
+          "default": "",
+          "description": "Repository containing tm-builder's Python environment; useful when editing files in Documents."
+        },
         "tm-builder.previewPort": {
           "type": "integer",
           "default": 8765,

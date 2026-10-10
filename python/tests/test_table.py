@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def load(name):
-    return parse_definition((ROOT / 'machines' / name).read_text())[0]
+    return parse_definition((ROOT / 'data/examples/machines' / name).read_text())[0]
 
 
 def formal_tools_available():
@@ -30,7 +30,7 @@ def formal_tools_available():
 
 class TableTests(unittest.TestCase):
     def test_bundled_rules_and_minimal_tex(self):
-        for path in sorted((ROOT / 'machines').glob('*.yaml')):
+        for path in sorted((ROOT / 'data/examples/machines').glob('*.yaml')):
             definition = parse_definition(path.read_text())[0]
             with self.subTest(machine=path.name):
                 headers, rows = table_cells(definition)
@@ -176,7 +176,7 @@ class TableTests(unittest.TestCase):
     def test_cli_and_make_arguments(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / 'table.csv'
-            with patch('sys.argv', ['tm-builder', 'table', str(ROOT / 'machines/copy.yaml'),
+            with patch('sys.argv', ['tm-builder', 'table', str(ROOT / 'data/examples/machines/copy.yaml'),
                                     '--output', str(target), '--format', 'csv', '--style', 'formal']), \
                  patch('builtins.print'):
                 from tm_builder.cli import main

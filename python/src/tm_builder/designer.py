@@ -18,6 +18,7 @@ from tm_builder.definition import DefinitionError, parse_definition
 from tm_builder.diagram import machine_diagram
 from tm_builder.inputs import parse_inputs
 from tm_builder.simulation import simulate
+from tm_builder.workspace import INPUT_EXAMPLES, MACHINE_EXAMPLES, ensure_workspace
 
 PROJECT = Path(__file__).resolve().parents[3]
 WEB_PROJECT = PROJECT / 'web'
@@ -47,15 +48,11 @@ def ensure_assets():
 
 
 def library_files(kind):
-    """List local YAML files; the gitignore allowlist identifies bundled examples."""
+    """List YAML files in the user's machine or input workspace."""
     if kind not in ('machines', 'inputs'):
         raise ValueError('Unknown library')
-    examples = set()
-    for line in (PROJECT / '.gitignore').read_text().splitlines():
-        prefix = f'!/{kind}/'
-        if line.startswith(prefix):
-            examples.add(line[len(prefix):])
-    folder = PROJECT / kind
+    examples = set(MACHINE_EXAMPLES if kind == 'machines' else INPUT_EXAMPLES)
+    folder = ensure_workspace() / kind
     return [{'filename': path.name, 'example': path.name in examples}
             for path in sorted(folder.iterdir())
             if path.suffix.lower() in ('.yaml', '.yml') and path.is_file()
@@ -65,7 +62,7 @@ def library_files(kind):
 def library_path(kind, filename):
     if not isinstance(filename, str) or filename not in {entry['filename'] for entry in library_files(kind)}:
         raise ValueError('File is not in the library')
-    return PROJECT / kind / filename
+    return ensure_workspace() / kind / filename
 
 
 class DiagramSource:
@@ -167,6 +164,11 @@ class DiagramSource:
 
 
 def create_server(machine_path: Path | None = None, port=8765):
+    workspace = ensure_workspace()
+    if machine_path is not None and not machine_path.exists() and not machine_path.is_absolute():
+        candidate = workspace / 'machines' / machine_path.name
+        if candidate.exists():
+            machine_path = candidate
     machine_path = machine_path.resolve() if machine_path else None
     if machine_path and not machine_path.is_file():
         raise ValueError(f'Machine file does not exist: {machine_path}')
@@ -307,7 +309,7 @@ def serve(machine_path: Path | None = None, port=8765, open_browser=True):
         ensure_assets()
     server = create_server(machine_path, port)
     url = f'http://127.0.0.1:{server.server_port}'
-    print(f'Diagram: {url}\nWatching: {machine_path or PROJECT / "machines"}\nPress Ctrl+C to stop.', flush=True)
+    print(f'Diagram: {url}\nWorkspace: {workspace}\nWatching: {machine_path or workspace / "machines"}\nPress Ctrl+C to stop.', flush=True)
     if open_browser:
         threading.Timer(.3, lambda: webbrowser.open(url)).start()
     try:

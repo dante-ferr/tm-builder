@@ -5,7 +5,7 @@ NPM ?= npm
 CODE ?= code
 PYTHON := $(POETRY) --project python run
 TM_BUILDER := $(PYTHON) tm-builder
-MACHINE ?= machines/copy.yaml
+MACHINE ?=
 INPUTS ?=
 MAX_STEPS ?= 1000
 PORT ?= 8765
@@ -15,10 +15,10 @@ STYLE ?= readable
 LANGUAGE ?= english
 LAYOUT ?= split
 DPI ?= 200
-OUTPUT ?= output/$(notdir $(basename $(MACHINE)))$(if $(filter table,$@),-$(STYLE).$(if $(filter image,$(FORMAT)),png,$(FORMAT)),.svg)
+OUTPUT ?= output/$(notdir $(basename $(if $(strip $(MACHINE)),$(MACHINE),copy.yaml)))$(if $(filter table,$@),-$(STYLE).$(if $(filter image,$(FORMAT)),png,$(FORMAT)),.svg)
 ARGS ?=
 
-.PHONY: help setup setup-formal python-install web-install editor-install build extension install-extension view dev run graph table check check-all schemas test test-extension test-vscode
+.PHONY: help setup setup-formal python-install web-install editor-install build extension install-extension docs-build docs-serve view dev run graph table check check-all schemas test test-extension test-vscode
 
 help:
 	@printf '%s\n' \
@@ -27,6 +27,8 @@ help:
 	  'make build             Build web assets' \
 	  'make extension         Package the VS Code extension' \
 	  'make install-extension Package and install the VS Code extension' \
+	  'make docs-build        Build the mdBook documentation' \
+	  'make docs-serve        Serve the mdBook documentation locally' \
 	  'make view              Open the live diagram (MACHINE=..., PORT=...)' \
 	  'make dev               Run the app with live code reload (PORT=..., DEV_PORT=...)' \
 	  'make run               Execute a machine (MACHINE=..., INPUTS=..., MAX_STEPS=...)' \
@@ -42,6 +44,7 @@ help:
 	  'ARGS="..."             Pass additional CLI options to view/run/graph/table/check'
 
 setup: python-install web-install editor-install build
+	$(TM_BUILDER) workspace
 
 setup-formal:
 	./scripts/setup-formal-deps.sh
@@ -70,6 +73,12 @@ extension: editor-install
 install-extension: extension
 	$(CODE) --install-extension dist/tm-builder-vscode.vsix --force
 
+docs-build:
+	mdbook build docs
+
+docs-serve:
+	mdbook serve docs
+
 view:
 	$(TM_BUILDER) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) --port "$(PORT)" $(ARGS)
 
@@ -83,19 +92,19 @@ dev: web-install
 	  wait -n $$api $$web; status=$$?; kill $$api $$web 2>/dev/null || true; wait 2>/dev/null || true; exit $$status'
 
 run:
-	$(TM_BUILDER) run "$(MACHINE)" $(if $(strip $(INPUTS)),--inputs-file "$(INPUTS)",) --max-steps "$(MAX_STEPS)" $(ARGS)
+	$(TM_BUILDER) run $(if $(strip $(MACHINE)),"$(MACHINE)",) $(if $(strip $(INPUTS)),--inputs-file "$(INPUTS)",) --max-steps "$(MAX_STEPS)" $(ARGS)
 
 graph:
-	$(TM_BUILDER) graph "$(MACHINE)" --output "$(OUTPUT)" $(ARGS)
+	$(TM_BUILDER) graph $(if $(strip $(MACHINE)),"$(MACHINE)",) --output "$(OUTPUT)" $(ARGS)
 
 table:
-	$(TM_BUILDER) table "$(MACHINE)" --output "$(OUTPUT)" --format "$(FORMAT)" --style "$(STYLE)" --language "$(LANGUAGE)" --layout "$(LAYOUT)" --dpi "$(DPI)" $(ARGS)
+	$(TM_BUILDER) table $(if $(strip $(MACHINE)),"$(MACHINE)",) --output "$(OUTPUT)" --format "$(FORMAT)" --style "$(STYLE)" --language "$(LANGUAGE)" --layout "$(LAYOUT)" --dpi "$(DPI)" $(ARGS)
 
 check:
-	$(TM_BUILDER) check "$(MACHINE)" $(ARGS)
+	$(TM_BUILDER) check $(if $(strip $(MACHINE)),"$(MACHINE)",) $(ARGS)
 
 check-all:
-	@set -e; for machine in machines/*.yaml machines/*.yml; do \
+	@set -e; for machine in data/examples/machines/*.yaml data/examples/machines/*.yml; do \
 	  [ -f "$$machine" ] || continue; $(TM_BUILDER) check "$$machine"; done
 
 schemas:

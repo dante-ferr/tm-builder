@@ -18,7 +18,7 @@ from tm_builder.designer import DiagramSource, create_server
 from tm_builder.web_export import export_download
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = (ROOT / 'machines/copy.yaml').read_text()
+SOURCE = (ROOT / 'data/examples/machines/copy.yaml').read_text()
 
 
 class WebExportTests(unittest.TestCase):
@@ -77,7 +77,7 @@ class WebExportTests(unittest.TestCase):
             self.assertEqual(archive.namelist(), ['table-a4-001.png', 'table-a4-002.png'])
 
     def test_http_real_make_downloads_and_errors(self):
-        server = create_server(ROOT / 'machines/copy.yaml', port=0)
+        server = create_server(ROOT / 'data/examples/machines/copy.yaml', port=0)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         connection = HTTPConnection('127.0.0.1', server.server_port, timeout=30)

@@ -1,0 +1,8 @@
+[book]
+authors = ["tm-builder contributors"]
+language = "en"
+src = "src"
+title = "tm-builder Documentation"
+
+[output.html]
+git-repository-url = "https://github.com/dante-ferr/tm-builder"

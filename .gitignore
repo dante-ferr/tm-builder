@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 /dist/
 /build/
+/docs/book/
 /output/
 .DS_Store
 node_modules/
@@ -15,18 +16,20 @@ web/public/assets/
 .aws/
 .codex/
 
-# Personal definitions and starting tapes; keep only the shared examples.
+# Bundled examples are the only YAML files tracked in the examples tree.
 /machines/*
-!/machines/copy.yaml
-!/machines/single_tape.yaml
-!/machines/nondeterministic_contains_one.yaml
-!/machines/blank_writer.yaml
-!/machines/halt.yaml
-!/machines/loop.yaml
 /inputs/*
-!/inputs/copy.yaml
-!/inputs/binary.yaml
-!/inputs/copy_preloaded.yaml
+/data/examples/machines/*
+!/data/examples/machines/copy.yaml
+!/data/examples/machines/single_tape.yaml
+!/data/examples/machines/nondeterministic_contains_one.yaml
+!/data/examples/machines/blank_writer.yaml
+!/data/examples/machines/halt.yaml
+!/data/examples/machines/loop.yaml
+/data/examples/inputs/*
+!/data/examples/inputs/copy.yaml
+!/data/examples/inputs/binary.yaml
+!/data/examples/inputs/copy_preloaded.yaml
 
 # Next.js build output
 /web/.next/
