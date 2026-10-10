@@ -90,10 +90,18 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: -.7px; margin-bottom: 7p
 .cell small { display: block; font: 9px system-ui; color: #8593a3; margin-top: 5px; }
 .cell.head { background: #d9f2e9; border: 2px solid #168b73; padding: 5px 1px; }
 .cell.written { background: #fff1bd; }
-.node.active-state ellipse { fill: #d9f2e9; stroke: #168b73; stroke-width: 3; }
-.edge.active-rule path, .edge.active-rule polygon { stroke: #d08800; stroke-width: 3; }
-.edge.active-rule polygon { fill: #d08800; }
-.edge.active-rule text { fill: #9a6200; }
+#graph .node text, #graph .edge text { fill: var(--graph-text, #000); }
+#graph .node ellipse[fill="none"] { fill: var(--graph-node-fill, none); }
+/* Keep the outer acceptance ring transparent so both circles stay visible. */
+#graph .node ellipse[fill="none"] ~ ellipse[fill="none"] { fill: none; }
+#graph [stroke="#64748b"] { stroke: var(--graph-line, #64748b); }
+#graph [fill="#64748b"] { fill: var(--graph-line, #64748b); }
+#graph [stroke="#d14c49"] { stroke: var(--graph-reject, #d14c49); }
+#graph .node.active-state ellipse { fill: var(--graph-active-fill, #d9f2e9); stroke: var(--graph-active-stroke, #168b73); stroke-width: 3; }
+#graph .node.active-state text { fill: var(--graph-active-text, #000); }
+#graph .edge.active-rule path, #graph .edge.active-rule polygon { stroke: var(--graph-rule, #d08800); stroke-width: 3; }
+#graph .edge.active-rule polygon { fill: var(--graph-rule, #d08800); }
+#graph .edge.active-rule text { fill: var(--graph-rule-text, #9a6200); }
 .workspace-footer { display: flex; justify-content: space-between; gap: 15px; font-size: 9px; color: var(--muted); padding: 0 32px 20px; line-height: 1.6; }
 #status { max-width: 65%; overflow-wrap: anywhere; }
 .export-dialog { width: min(540px, calc(100vw - 32px)); max-height: 90dvh; overflow: auto; padding: 26px; border: 1px solid var(--line); border-radius: 14px; color: #253344; box-shadow: 0 24px 100px #15253640; }
@@ -127,7 +135,12 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: -.7px; margin-bottom: 7p
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 
 /* The workspace keeps the sidebar palette and switches the working area. */
-.workspace-shell[data-theme="dark"] { color-scheme: dark; color: #dce5ef; background: #101923; --line: #2c3948; --muted: #94a2b3; }
+.workspace-shell[data-theme="dark"] {
+  color-scheme: dark; color: #dce5ef; background: #101923; --line: #2c3948; --muted: #94a2b3;
+  --graph-text: #dce8f3; --graph-line: #8296ae; --graph-node-fill: #1b2c3d;
+  --graph-reject: #f48282; --graph-active-fill: #16463e; --graph-active-stroke: #64dec0;
+  --graph-active-text: #bcfae5; --graph-rule: #f5bd64; --graph-rule-text: #ffd593;
+}
 .workspace-shell[data-theme="dark"] .workspace-header,
 .workspace-shell[data-theme="dark"] .graph-panel,
 .workspace-shell[data-theme="dark"] .playback-panel,
@@ -153,7 +166,12 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: -.7px; margin-bottom: 7p
 .workspace-shell[data-theme="dark"] .export-dialog { border-color: var(--line); }
 .workspace-shell[data-theme="dark"] .export-dialog::backdrop { background: #050a10b8; }
 @media (prefers-color-scheme: dark) {
-  .workspace-shell[data-theme="system"] { color-scheme: dark; color: #dce5ef; background: #101923; --line: #2c3948; --muted: #94a2b3; }
+  .workspace-shell[data-theme="system"] {
+    color-scheme: dark; color: #dce5ef; background: #101923; --line: #2c3948; --muted: #94a2b3;
+    --graph-text: #dce8f3; --graph-line: #8296ae; --graph-node-fill: #1b2c3d;
+    --graph-reject: #f48282; --graph-active-fill: #16463e; --graph-active-stroke: #64dec0;
+    --graph-active-text: #bcfae5; --graph-rule: #f5bd64; --graph-rule-text: #ffd593;
+  }
   .workspace-shell[data-theme="system"] .workspace-header,
   .workspace-shell[data-theme="system"] .graph-panel,
   .workspace-shell[data-theme="system"] .playback-panel,
