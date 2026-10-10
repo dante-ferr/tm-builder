@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {mountGraphNavigation} from '../src/graph-navigation.js';
+import {FOLLOW_ZOOM, mountGraphNavigation} from '../src/graph-navigation.js';
 
 class Graph extends EventTarget {
   clientWidth = 800;
@@ -19,12 +19,19 @@ function emit(target, type, fields) {
   target.dispatchEvent(event);
   return event;
 }
-function fixture(t) {
+function point(x = 0, y = 0) {
+  return {x, y, matrixTransform(matrix) { return point(this.x + matrix.x, this.y + matrix.y); }};
+}
+function state(x, y) {
+  return {getBBox: () => ({x, y, width: 40, height: 20}), getCTM: () => ({x: 4, y: 112})};
+}
+function fixture(t, onFollowStop) {
   globalThis.window = new EventTarget();
   const graph = new Graph();
   const lifetime = new AbortController();
-  const svg = {style: {}, viewBox: {baseVal: {width: 200, height: 100}}};
-  const navigation = mountGraphNavigation(graph, lifetime.signal);
+  const svg = {style: {}, viewBox: {baseVal: {x: 0, y: 0, width: 200, height: 100}},
+    createSVGPoint: () => point(), getCTM: () => ({inverse: () => ({x: 0, y: 0})})};
+  const navigation = mountGraphNavigation(graph, lifetime.signal, onFollowStop);
   navigation.setDiagram(svg);
   const view = () => {
     const [x, y, scale] = svg.style.transform.match(/-?\d+(?:\.\d+)?/g).map(Number);
@@ -56,6 +63,9 @@ test('middle drag pans a fitted diagram freely and stops on release', t => {
   assert.ok(graph.hasPointerCapture(7));
   emit(graph, 'pointermove', {buttons: 4, pointerId: 7, clientX: 520, clientY: 270});
   assert.deepEqual(view(), {...before, x: before.x + 120, y: before.y + 70});
+  emit(graph, 'pointermove', {buttons: 4, pointerId: 7, clientX: 400, clientY: 200});
+  assert.deepEqual(view(), before);
+  emit(graph, 'pointermove', {buttons: 4, pointerId: 7, clientX: 520, clientY: 270});
   emit(graph, 'pointerup', {button: 1, pointerId: 7});
   assert.ok(!graph.hasPointerCapture(7));
   assert.ok(!graph.classes.has('panning'));
@@ -112,4 +122,63 @@ test('cancel and disposal remove drag state and event handlers', t => {
   emit(graph, 'pointermove', {buttons: 4, pointerId: 7, clientX: 520, clientY: 270});
   assert.deepEqual(view(), before);
   assert.ok(!graph.classes.has('panning'));
+});
+
+test('following centers translated states at a fixed initial zoom and preserves user zoom', t => {
+  const {graph, navigation, view} = fixture(t);
+  navigation.startFollowing(state(10, -80));
+  assert.deepEqual(view(), {x: 400 - 34 * FOLLOW_ZOOM, y: 200 - 42 * FOLLOW_ZOOM, scale: FOLLOW_ZOOM});
+  navigation.zoom(1.25);
+  emit(graph, 'wheel', {deltaY: -150, deltaMode: 0, clientX: 450, clientY: 230});
+  const scale = view().scale;
+  navigation.follow(state(100, -20));
+  assert.deepEqual(view(), {x: 400 - 124 * scale, y: 200 - 102 * scale, scale});
+  graph.clientWidth = 1000;
+  navigation.resize();
+  assert.deepEqual(view(), {x: 500 - 124 * scale, y: 200 - 102 * scale, scale});
+});
+
+test('only actual camera panning or Fit cancels following', t => {
+  let stops = 0;
+  const {graph, navigation, view} = fixture(t, () => stops++);
+  navigation.startFollowing(state(10, -80));
+  emit(graph, 'pointerdown', {button: 1, pointerId: 7, clientX: 400, clientY: 200});
+  emit(graph, 'pointermove', {buttons: 4, pointerId: 7, clientX: 400, clientY: 200});
+  emit(graph, 'pointerup', {pointerId: 7});
+  emit(window, 'blur', {});
+  assert.equal(stops, 0);
+  navigation.follow(state(100, -20));
+  const following = view();
+  emit(graph, 'pointerdown', {button: 1, pointerId: 7, clientX: 400, clientY: 200});
+  emit(graph, 'pointermove', {buttons: 4, pointerId: 7, clientX: 450, clientY: 240});
+  const panned = view();
+  assert.deepEqual(panned, {...following, x: following.x + 50, y: following.y + 40});
+  navigation.follow(state(10, -80));
+  assert.deepEqual(view(), panned);
+  assert.equal(stops, 1);
+  navigation.startFollowing(state(10, -80));
+  emit(graph, 'keydown', {key: 'd'});
+  const keyboardView = view();
+  navigation.follow(state(100, -20));
+  assert.deepEqual(view(), keyboardView);
+  assert.equal(stops, 2);
+  navigation.startFollowing(state(10, -80));
+  navigation.fit();
+  assert.equal(stops, 3);
+});
+
+test('playback stop and diagram replacement discard the followed state', t => {
+  const {navigation, svg, view} = fixture(t);
+  navigation.startFollowing(state(10, -80));
+  navigation.stopFollowing();
+  const stopped = view();
+  navigation.follow(state(100, -20));
+  assert.deepEqual(view(), stopped);
+  navigation.zoom(.8);
+  navigation.startFollowing(state(100, -20));
+  assert.equal(view().scale, FOLLOW_ZOOM);
+  navigation.setDiagram(svg);
+  const replaced = view();
+  navigation.follow(state(10, -80));
+  assert.deepEqual(view(), replaced);
 });

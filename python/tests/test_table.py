@@ -11,13 +11,21 @@ from unittest.mock import patch
 from PIL import Image
 
 from tm_builder.definition import parse_definition
-from tm_builder.table import export_table, latex_text, table_cells, transition_table
+from tm_builder.table import _run, export_table, latex_text, table_cells, transition_table
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def load(name):
     return parse_definition((ROOT / 'machines' / name).read_text())[0]
+
+
+def formal_tools_available():
+    lookup = shutil.which('kpsewhich')
+    return bool((shutil.which('lualatex') or shutil.which('xelatex'))
+                and shutil.which('pdftoppm') and lookup
+                and subprocess.run([lookup, 'lmroman10-regular.otf'],
+                                   capture_output=True, text=True, timeout=10).stdout.strip())
 
 
 class TableTests(unittest.TestCase):
@@ -88,9 +96,10 @@ class TableTests(unittest.TestCase):
         definition.transitions *= 160
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            with patch('tm_builder.table.shutil.which', side_effect=AssertionError('tool lookup')):
+            with patch('tm_builder.table.shutil.which', return_value=None) as lookup:
                 split = export_table(definition, root / 'table.png', dpi=72)
                 long = export_table(definition, root / 'long.png', layout='long', dpi=72)
+            self.assertTrue(all(call.args == ('fc-match',) for call in lookup.call_args_list))
             self.assertGreater(len(split), 1)
             split_sizes = []
             for path in split:
@@ -125,11 +134,44 @@ class TableTests(unittest.TestCase):
                     export_table(load('copy.yaml'), root / 'table.png', **options)
             existing = root / 'table-a4-001.png'
             existing.write_bytes(b'previous')
-            with patch('tm_builder.table.shutil.which', return_value='/tools/engine'), \
+            with patch('tm_builder.table.shutil.which',
+                       side_effect=lambda name: None if name == 'kpsewhich' else '/tools/engine'), \
                  patch('tm_builder.table.subprocess.run', return_value=subprocess.CompletedProcess([], 1, '', 'bad font')):
                 with self.assertRaisesRegex(RuntimeError, 'LaTeX compilation failed'):
                     export_table(load('copy.yaml'), root / 'table.png', style='formal')
             self.assertEqual(existing.read_bytes(), b'previous')
+
+    def test_missing_fonts_fail_before_compilation_and_preserve_images(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            existing = root / 'table-a4-001.png'
+            existing.write_bytes(b'previous')
+            with patch('tm_builder.table.shutil.which', side_effect=lambda name: '/tools/' + name), \
+                 patch('tm_builder.table.subprocess.run',
+                       return_value=subprocess.CompletedProcess([], 1, '', '')) as run:
+                with self.assertRaisesRegex(RuntimeError, 'Latin Modern.*make setup-formal'):
+                    export_table(load('copy.yaml'), root / 'table.png', style='formal')
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], ['/tools/kpsewhich', 'lmroman10-regular.otf'])
+            self.assertEqual(existing.read_bytes(), b'previous')
+
+    def test_tex_font_cache_survives_export_directories_and_respects_overrides(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / 'cache'
+            with patch.dict('os.environ', {'XDG_CACHE_HOME': str(cache), 'TEXMFCACHE': '', 'TEXMFVAR': ''}), \
+                 patch('tm_builder.table.subprocess.run',
+                       return_value=subprocess.CompletedProcess([], 0, '', '')) as run:
+                for export in ('first', 'second'):
+                    _run(['lualatex'], root / export, 'LaTeX compilation')
+                for call in run.call_args_list:
+                    self.assertEqual(call.kwargs['env']['TEXMFCACHE'], str(cache / 'tm-builder/tex'))
+                    self.assertEqual(call.kwargs['env']['TEXMFVAR'], str(cache / 'tm-builder/tex'))
+                self.assertTrue((cache / 'tm-builder/tex').is_dir())
+                with patch.dict('os.environ', {'TEXMFCACHE': 'custom-cache', 'TEXMFVAR': 'custom-var'}):
+                    _run(['lualatex'], root, 'LaTeX compilation')
+                self.assertEqual(run.call_args.kwargs['env']['TEXMFCACHE'], 'custom-cache')
+                self.assertEqual(run.call_args.kwargs['env']['TEXMFVAR'], 'custom-var')
 
     def test_cli_and_make_arguments(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -145,8 +187,7 @@ class TableTests(unittest.TestCase):
         self.assertIn('copy-formal.png', result.stdout)
         self.assertIn('--layout "long"', result.stdout)
 
-    @unittest.skipUnless((shutil.which('lualatex') or shutil.which('xelatex')) and shutil.which('pdftoppm'),
-                         'Requires a LaTeX engine and Poppler')
+    @unittest.skipUnless(formal_tools_available(), 'Requires a LaTeX engine, Latin Modern fonts, and Poppler')
     def test_real_formal_split_and_long(self):
         definition = load('loop.yaml')
         template = definition.transitions[0]

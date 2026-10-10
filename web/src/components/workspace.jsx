@@ -12,6 +12,7 @@ function ExportDialog() {
         <div className="export-grid">
           <label>Format <select id="export-format"><option value="image">Image (PNG)</option><option value="csv">CSV</option><option value="tex">LaTeX source</option></select></label>
           <label>Style <select id="export-style"><option value="readable">Readable</option><option value="formal">Formal mathematics</option></select></label>
+          <label>Language <select id="export-language"><option value="english">English</option><option value="portuguese">Português</option></select></label>
           <label id="export-layout-label">Layout <select id="export-layout"><option value="split">A4 pieces</option><option value="long">One long table</option></select></label>
           <label id="export-dpi-label">Resolution (DPI) <input id="export-dpi" type="number" min="72" max="600" step="1" defaultValue="200" required /></label>
         </div>

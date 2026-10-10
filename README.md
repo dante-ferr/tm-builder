@@ -23,10 +23,11 @@ project dependencies. On Arch, Debian/Ubuntu, or Fedora Linux, install it with:
 make setup-formal
 ```
 
-This uses the OS package manager and may prompt for `sudo`. Other systems need
-TeX Live (LuaLaTeX or XeLaTeX, plus LaTeX packages) and Poppler's `pdftoppm` on
-`PATH`. This extra setup is only needed for `STYLE=formal` image exports;
-readable images, CSV, and LaTeX source exports do not need it.
+This uses the OS package manager and may prompt for `sudo`. It installs TeX
+fonts and a system font for accented characters too. Other systems need TeX
+Live (LuaLaTeX or XeLaTeX, LaTeX packages, and Latin Modern fonts) and Poppler's
+`pdftoppm` on `PATH`. This setup is only needed for formal PNG exports; readable
+images, CSV, and LaTeX source exports do not need TeX Live.
 
 ## Commands
 
@@ -55,7 +56,8 @@ port. `make view` continues to serve the built static viewer.
 
 ## Transition tables
 
-Choose `FORMAT=csv|image|tex`, `STYLE=readable|formal`, and `LAYOUT=split|long`.
+Choose `FORMAT=csv|image|tex`, `STYLE=readable|formal`, `LANGUAGE=english|portuguese`,
+and `LAYOUT=split|long`.
 Defaults are `image`, `readable`, and `split`. Split images fit A4 and break
 between rows; long images use one continuous page. Set `DPI` from 72 to 600.
 
@@ -63,6 +65,7 @@ between rows; long images use one continuous page. Set `DPI` from 72 to 600.
 make table FORMAT=image STYLE=readable
 make table FORMAT=image STYLE=formal LAYOUT=long
 make table FORMAT=csv STYLE=formal
+make table FORMAT=image STYLE=readable LANGUAGE=portuguese
 ```
 
 Readable tables list source, read, next, write, and move. Formal tables show

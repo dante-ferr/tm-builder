@@ -32,6 +32,8 @@ def main() -> None:
             cmd.add_argument("--output", help="Output path (extension must match format)")
             cmd.add_argument("--format", choices=("csv", "image", "tex"))
             cmd.add_argument("--style", choices=("readable", "formal"), default="readable")
+            cmd.add_argument("--language", choices=("english", "portuguese"), default="english",
+                             help="Table label language (default: english)")
             cmd.add_argument("--layout", choices=("split", "long"), default="split")
             cmd.add_argument("--split-a4", action="store_true",
                              help="Render one PNG per A4 page, with repeated headers")
@@ -79,7 +81,8 @@ def main() -> None:
                 extension = "png" if format == "image" else format
                 output = Path(args.output or f"output/{Path(args.machine).stem}-{args.style}.{extension}")
                 for target in export_table(definition, output, format=format, style=args.style,
-                                           layout=args.layout, split_a4=args.split_a4, dpi=args.dpi):
+                                           layout=args.layout, split_a4=args.split_a4, dpi=args.dpi,
+                                           language=args.language):
                     print(target)
     except (DefinitionError, ValueError, OSError, RuntimeError) as error:
         parser.exit(1, f"{error}\n")

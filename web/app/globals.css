@@ -84,6 +84,7 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: -.7px; margin-bottom: 7p
 .empty-orbit i:nth-child(2) { background: #e5f3ee; border-color: #81b3a4; }
 .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 6px; padding: 10px 16px; }
 .controls label { display: flex; flex-direction: column; gap: 4px; font-size: 9px; color: var(--muted); margin-left: 4px; }
+.controls .inline-check { flex-direction: row; align-items: center; min-height: 30px; }
 .controls button { min-height: 30px; padding-top: 6px; padding-bottom: 6px; }
 #play { border-color: #a6d5c8; background: #eaf7f1; color: #087f70; min-width: 62px; }
 #break-state { width: 118px; } #break-rule { width: 100px; }

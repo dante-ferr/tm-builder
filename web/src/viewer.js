@@ -3,9 +3,9 @@ import {mountGraphNavigation} from './graph-navigation';
 export function mountViewer(root) {
   const $ = id => root.querySelector(`#${id}`);
   const lifetime = new AbortController();
-  const graphNavigation = mountGraphNavigation($('graph'), lifetime.signal);
-  const {fit, zoom} = graphNavigation;
-  const graphResizeObserver = new ResizeObserver(() => fit());
+  const graphNavigation = mountGraphNavigation($('graph'), lifetime.signal, () => { $('follow-state').checked = false; });
+  const {fit, zoom, resize} = graphNavigation;
+  const graphResizeObserver = new ResizeObserver(() => resize());
   graphResizeObserver.observe($('graph'));
   lifetime.signal.addEventListener('abort', () => graphResizeObserver.disconnect(), {once: true});
   const shell = root.querySelector('.workspace-shell');
@@ -15,7 +15,7 @@ export function mountViewer(root) {
     expandGraph.setAttribute('aria-expanded', String(expanded));
     expandGraph.title = expanded ? 'Shrink state graph' : 'Expand state graph';
     expandGraph.setAttribute('aria-label', expanded ? 'Shrink state graph' : 'Expand state graph');
-    requestAnimationFrame(() => fit());
+    requestAnimationFrame(() => { if (!disposed) resize(); });
   }, {signal: lifetime.signal});
   const fetch = (url, options = {}) => window.fetch(url, {...options, signal: lifetime.signal});
   let disposed = false;
@@ -192,7 +192,7 @@ export function mountViewer(root) {
     const link = document.createElement('a'); link.href = url; link.download = `${filename}.svg`; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  window.addEventListener('resize', fit);
+  window.addEventListener('resize', resize);
 
   let exportBusy = false, exportFile = null, exportFileRequest = 0, exportNameDirty = false;
   function updateExport() {
@@ -265,6 +265,7 @@ export function mountViewer(root) {
 
   function pause() {
     clearTimeout(timer); timers.delete(timer); timer = null; $('play').textContent = 'Play';
+    graphNavigation.stopFollowing();
   }
   function clearTrace(message) {
     pause(); request++; trace = null; position = 0; phase = 0;
@@ -279,6 +280,7 @@ export function mountViewer(root) {
     svg.querySelectorAll('.active-state, .active-rule').forEach(node => node.classList.remove('active-state', 'active-rule'));
     if (!machine) return;
     svg.querySelector(`#state_${machine.states.indexOf(state)}`)?.classList.add('active-state');
+    graphNavigation.follow(svg.querySelector('.active-state'));
     if (rule) svg.querySelector(`#edge_${machine.states.indexOf(rule.source)}_${machine.states.indexOf(rule.to)}`)?.classList.add('active-rule');
   }
   function renderFrame() {
@@ -382,23 +384,30 @@ export function mountViewer(root) {
     if (id === 'setup') { inputRequest++; $('input-select').value = ''; }
     clearTrace('Run settings changed. Load a new trace.'); $('run').disabled = !machine;
   };
-  $('setup-panel').ontoggle = fit;
+  $('setup-panel').ontoggle = resize;
   $('reset').onclick = () => seek(0);
   $('back').onclick = () => seek(phase ? position : Math.max(0, position - 1));
   $('next').onclick = () => seek(Math.min(trace.frames.length - 1, position + 1));
   $('timeline').oninput = event => seek(Number(event.target.value));
   $('play').onclick = () => {
     if (timer !== null) { pause(); return; }
+    if (!trace || position >= trace.frames.length - 1) return;
+    if ($('follow-state').checked) graphNavigation.startFollowing(svg?.querySelector('.active-state'));
     $('play').textContent = 'Pause'; schedule();
+  };
+  $('follow-state').onchange = () => {
+    if ($('follow-state').checked && timer !== null) graphNavigation.startFollowing(svg?.querySelector('.active-state'));
+    else graphNavigation.stopFollowing();
   };
   refresh();
   return () => {
     disposed = true;
     graphNavigation.stopPan();
+    graphNavigation.stopFollowing();
     lifetime.abort();
     for (const id of timers) clearTimeout(id);
     clearTimeout(timer);
-    window.removeEventListener('resize', fit);
+    window.removeEventListener('resize', resize);
     for (const element of root.querySelectorAll('[id]')) {
       for (const event of ['onclick', 'onchange', 'oninput', 'onsubmit', 'ontoggle']) element[event] = null;
     }

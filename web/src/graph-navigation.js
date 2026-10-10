@@ -1,6 +1,27 @@
 // Keep the diagram in a fixed viewport so navigation also works when it fits.
-export function mountGraphNavigation(graph, signal) {
+export const FOLLOW_ZOOM = 0.85;
+
+export function mountGraphNavigation(graph, signal, onFollowStop = () => {}) {
   let svg = null, scale = 1, offsetX = 0, offsetY = 0;
+  let followedNode = null;
+  function stopFollowing(manual = false) {
+    const wasFollowing = Boolean(followedNode);
+    followedNode = null;
+    if (manual && wasFollowing) onFollowStop();
+  }
+  function centerFollowedNode() {
+    if (!svg || !followedNode) return;
+    const bounds = followedNode.getBBox();
+    const point = svg.createSVGPoint();
+    point.x = bounds.x + bounds.width / 2;
+    point.y = bounds.y + bounds.height / 2;
+    // Graphviz places states inside a translated graph group. Convert back to
+    // root SVG coordinates before applying our viewport transform.
+    const center = point.matrixTransform(followedNode.getCTM()).matrixTransform(svg.getCTM().inverse());
+    offsetX = graph.clientWidth / 2 - (center.x - svg.viewBox.baseVal.x) * scale;
+    offsetY = graph.clientHeight / 2 - (center.y - svg.viewBox.baseVal.y) * scale;
+    updateView();
+  }
   function updateView() {
     if (!svg) return;
     const {width, height} = svg.viewBox.baseVal;
@@ -26,7 +47,8 @@ export function mountGraphNavigation(graph, signal) {
     offsetX = x - (x - offsetX) * ratio;
     offsetY = y - (y - offsetY) * ratio;
     scale = nextScale;
-    updateView();
+    if (followedNode) centerFollowedNode();
+    else updateView();
   }
   const navigationEvents = {signal};
   graph.addEventListener('wheel', event => {
@@ -53,6 +75,8 @@ export function mountGraphNavigation(graph, signal) {
   graph.addEventListener('pointermove', event => {
     if (!pan || event.pointerId !== pan.pointerId) return;
     if (!(event.buttons & 4)) { stopPan(); return; }
+    if (followedNode && event.clientX === pan.x && event.clientY === pan.y) return;
+    stopFollowing(true);
     offsetX = pan.left + event.clientX - pan.x;
     offsetY = pan.top + event.clientY - pan.y;
     updateView();
@@ -74,14 +98,25 @@ export function mountGraphNavigation(graph, signal) {
     const direction = directions[event.key];
     if (!direction) return;
     event.preventDefault();
+    stopFollowing(true);
     offsetX += direction[0];
     offsetY += direction[1];
     updateView();
   }, navigationEvents);
   return {
-    fit,
+    fit() { stopFollowing(true); fit(); },
+    resize() { if (followedNode) centerFollowedNode(); else fit(); },
     zoom,
-    setDiagram(diagram) { stopPan(); svg = diagram; fit(); },
+    startFollowing(node) {
+      if (!svg || !node) return;
+      stopPan();
+      followedNode = node;
+      scale = FOLLOW_ZOOM;
+      centerFollowedNode();
+    },
+    follow(node) { if (followedNode && node) { followedNode = node; centerFollowedNode(); } },
+    stopFollowing,
+    setDiagram(diagram) { stopPan(); stopFollowing(); svg = diagram; fit(); },
     stopPan,
   };
 }

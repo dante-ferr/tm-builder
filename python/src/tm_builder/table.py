@@ -1,6 +1,7 @@
 """Minimal transition tables: CSV, readable PNGs, and formal LaTeX PNGs."""
 
 import csv
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -13,6 +14,11 @@ _ESCAPES = {
     '$': r'\$', '&': r'\&', '#': r'\#', '_': r'\_',
     '%': r'\%', '~': r'\textasciitilde{}', '^': r'\textasciicircum{}',
 }
+_HEADERS = {
+    'english': ('Source', 'Read', 'Next', 'Write', 'Move'),
+    'portuguese': ('Origem', 'Lido', 'Próximo estado', 'Escrito', 'Movimento'),
+}
+_NO_TRANSITIONS = {'english': 'No transitions.', 'portuguese': 'Sem transições.'}
 
 
 def latex_text(value: str, *, wrap: bool = False) -> str:
@@ -40,7 +46,7 @@ def _math_tuple(values, blank):
     return '(' + r',\allowbreak{} '.join(_math_symbol(v, blank) for v in values) + ')'
 
 
-def table_cells(definition: MachineDefinition, style='readable', *, latex=False):
+def table_cells(definition: MachineDefinition, style='readable', *, latex=False, language='english'):
     """Formal NTM rows group all alternatives for each (state, read tuple)."""
     if style == 'readable':
         rows = [[_state(t.source) if latex else t.source,
@@ -48,7 +54,7 @@ def table_cells(definition: MachineDefinition, style='readable', *, latex=False)
                  _state(t.to) if latex else t.to,
                  _tuple((a[1] for a in t.tapes), latex=latex),
                  _tuple((a[2] for a in t.tapes), latex=latex)] for t in definition.transitions]
-        return ['Source', 'Read', 'Next', 'Write', 'Move'], rows
+        return list(_HEADERS[language]), rows
     groups = {}
     for t in definition.transitions:
         key = (t.source, tuple(a[0] for a in t.tapes))
@@ -68,8 +74,8 @@ def table_cells(definition: MachineDefinition, style='readable', *, latex=False)
     return [r'\((q,\boldsymbol{a})\)', r'\(\delta(q,\boldsymbol{a})\)'], rows
 
 
-def transition_table(definition: MachineDefinition, *, style='readable', layout='split') -> str:
-    headers, rows = table_cells(definition, style, latex=True)
+def transition_table(definition: MachineDefinition, *, style='readable', layout='split', language='english') -> str:
+    headers, rows = table_cells(definition, style, latex=True, language=language)
     widths = ('.18', '.23', '.18', '.23', '.18') if style == 'readable' else ('.40', '.60')
     columns = ''.join(r'>{\raggedright\arraybackslash}p{\dimexpr' + w
                       + r'\linewidth-2\tabcolsep\relax}' for w in widths)
@@ -77,7 +83,7 @@ def transition_table(definition: MachineDefinition, *, style='readable', layout=
     body = [('\\rowcolor{black!4} ' if i % 2 == 0 else '') + ' & '.join(row) + r' \\'
             for i, row in enumerate(rows)]
     if not body:
-        body = [r'\multicolumn{' + str(len(headers)) + r'}{c}{No transitions.} \\']
+        body = [r'\multicolumn{' + str(len(headers)) + r'}{c}{' + _NO_TRANSITIONS[language] + r'} \\']
     preamble = [r'\documentclass[10pt,a4paper]{article}',
                 r'\usepackage[margin=18mm]{geometry}', r'\usepackage{fontspec,amsmath}',
                 r'\usepackage{array,booktabs,longtable}', r'\usepackage[table]{xcolor}',
@@ -99,11 +105,19 @@ def transition_table(definition: MachineDefinition, *, style='readable', layout=
 
 def _run(command, directory, description):
     try:
-        # LuaLaTeX needs a writable cache even when its fonts are already cached.
-        import os
-        environment = dict(os.environ, TEXMFCACHE=str(directory / 'tex-cache'),
-                           TEXMFVAR=str(directory / 'tex-cache'))
-        (directory / 'tex-cache').mkdir(exist_ok=True)
+        environment = dict(os.environ)
+        # Reuse LuaLaTeX's font database across exports instead of rebuilding it
+        # in a temporary directory for each download. Respect custom TeX paths.
+        if not all(environment.get(key) for key in ('TEXMFCACHE', 'TEXMFVAR')):
+            cache = Path(environment.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'tm-builder' / 'tex'
+            try:
+                cache.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                cache = directory / 'tex-cache'
+                cache.mkdir(exist_ok=True)
+            for key in ('TEXMFCACHE', 'TEXMFVAR'):
+                if not environment.get(key):
+                    environment[key] = str(cache)
         result = subprocess.run(command, cwd=directory, env=environment,
                                 capture_output=True, text=True, timeout=120)
     except subprocess.TimeoutExpired as error:
@@ -113,13 +127,25 @@ def _run(command, directory, description):
         raise RuntimeError(f'{description} failed:\n{detail}')
 
 
-def _latex_images(definition, work, style, layout, dpi):
+def _latex_images(definition, work, style, layout, dpi, language):
     from PIL import Image, ImageChops
     engine = shutil.which('lualatex') or shutil.which('xelatex')
     rasterizer = shutil.which('pdftoppm')
     if not engine or not rasterizer:
         raise RuntimeError('Formal images require LuaLaTeX or XeLaTeX and pdftoppm (Poppler) on PATH.')
-    (work / 'table.tex').write_text(transition_table(definition, style=style, layout=layout), encoding='utf-8')
+    lookup = shutil.which('kpsewhich')
+    if lookup:
+        try:
+            font = subprocess.run([lookup, 'lmroman10-regular.otf'], capture_output=True,
+                                  text=True, timeout=10)
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError('Checking LaTeX fonts timed out after 10 seconds.') from error
+        if font.returncode or not font.stdout.strip():
+            raise RuntimeError(
+                'Latin Modern fonts are missing. Run make setup-formal in a terminal, then retry. '
+                'On Arch Linux: sudo pacman -S --needed texlive-fontsrecommended.')
+    (work / 'table.tex').write_text(transition_table(definition, style=style, layout=layout,
+                                                     language=language), encoding='utf-8')
     for _ in range(2):
         _run([engine, '-no-shell-escape', '-interaction=nonstopmode', '-halt-on-error', 'table.tex'],
              work, 'LaTeX compilation')
@@ -141,8 +167,19 @@ def _latex_images(definition, work, style, layout, dpi):
 def _font(size, bold=False):
     from PIL import ImageFont
     name = 'DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'
-    for path in (name, '/usr/share/fonts/TTF/' + name,
-                 '/usr/share/fonts/truetype/dejavu/' + name):
+    paths = [name, '/usr/share/fonts/TTF/' + name,
+             '/usr/share/fonts/truetype/dejavu/' + name]
+    matcher = shutil.which('fc-match')
+    if matcher:
+        family = 'DejaVu Sans:style=Bold' if bold else 'DejaVu Sans'
+        try:
+            match = subprocess.run([matcher, '-f', '%{file}', family], check=True,
+                                   capture_output=True, text=True, timeout=5).stdout.strip()
+            if match:
+                paths.insert(0, match)
+        except (subprocess.SubprocessError, OSError):
+            pass
+    for path in paths:
         try:
             return ImageFont.truetype(path, size)
         except OSError:
@@ -150,9 +187,9 @@ def _font(size, bold=False):
     return ImageFont.load_default(size=size)
 
 
-def _readable_images(definition, layout, dpi):
+def _readable_images(definition, layout, dpi, language):
     from PIL import Image, ImageDraw
-    headers, rows = table_cells(definition)
+    headers, rows = table_cells(definition, language=language)
     width, limit = round(174 * dpi / 25.4), round(261 * dpi / 25.4)
     pad = max(2, round(4 * dpi / 72))
     font, bold = _font(round(10 * dpi / 72)), _font(round(10 * dpi / 72), True)
@@ -175,7 +212,7 @@ def _readable_images(definition, layout, dpi):
         cells = [wrap(text, w - 2 * pad) for text, w in zip(row, widths)]
         prepared.append((cells, max(map(len, cells)) * line + 2 * pad))
     if not prepared:
-        prepared = [([['No transitions.'], [], [], [], []], line + 2 * pad)]
+        prepared = [([[_NO_TRANSITIONS[language]], [], [], [], []], line + 2 * pad)]
     header_height = line + 2 * pad
     groups, group, height = [], [], header_height + 2
     for row in prepared:
@@ -213,10 +250,13 @@ def _readable_images(definition, layout, dpi):
 
 
 def export_table(definition: MachineDefinition, target: Path, *, format=None,
-                 style='readable', layout='split', split_a4=False, dpi=200) -> list[Path]:
+                 style='readable', layout='split', split_a4=False, dpi=200,
+                 language='english') -> list[Path]:
     format = format or {'.tex': 'tex', '.csv': 'csv', '.png': 'image'}.get(target.suffix.lower())
     if format not in ('tex', 'csv', 'image') or style not in ('readable', 'formal') or layout not in ('split', 'long'):
         raise ValueError('Choose FORMAT=csv|image|tex, STYLE=readable|formal, LAYOUT=split|long.')
+    if language not in _HEADERS:
+        raise ValueError('Choose LANGUAGE=english|portuguese.')
     expected = {'tex': '.tex', 'csv': '.csv', 'image': '.png'}[format]
     if target.suffix.lower() != expected:
         raise ValueError(f'{format} output requires a {expected} file.')
@@ -228,7 +268,7 @@ def export_table(definition: MachineDefinition, target: Path, *, format=None,
         layout = 'split'
     target.parent.mkdir(parents=True, exist_ok=True)
     if format == 'csv':
-        headers, rows = table_cells(definition, style)
+        headers, rows = table_cells(definition, style, language=language)
         with target.open('w', encoding='utf-8', newline='') as stream:
             writer = csv.writer(stream)
             writer.writerow(headers)
@@ -236,15 +276,16 @@ def export_table(definition: MachineDefinition, target: Path, *, format=None,
         return [target]
     outputs = []
     if format == 'tex':
-        target.write_text(transition_table(definition, style=style, layout=layout), encoding='utf-8')
+        target.write_text(transition_table(definition, style=style, layout=layout,
+                                           language=language), encoding='utf-8')
         outputs.append(target)
         if not split_a4:
             return outputs
     with tempfile.TemporaryDirectory(prefix='tm-builder-table-') as directory:
         if style == 'formal' or format == 'tex':
-            images = _latex_images(definition, Path(directory), style, layout, dpi)
+            images = _latex_images(definition, Path(directory), style, layout, dpi, language)
         else:
-            images = _readable_images(definition, layout, dpi)
+            images = _readable_images(definition, layout, dpi, language)
         # Stage every image before replacing any existing output.
         staged = []
         for index, image in enumerate(images, 1):

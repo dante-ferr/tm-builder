@@ -16,10 +16,12 @@ from tm_builder.definition import MachineDefinition
 def export_download(definition: MachineDefinition, filename: str, options: dict, project: Path):
     format = options.get('format', 'image')
     style = options.get('style', 'readable')
+    language = options.get('language', 'english')
     layout = options.get('layout', 'split')
     dpi = options.get('dpi', 200)
-    if format not in ('csv', 'image', 'tex') or style not in ('readable', 'formal') or layout not in ('split', 'long'):
-        raise ValueError('Choose a supported format, style, and layout.')
+    if (format not in ('csv', 'image', 'tex') or style not in ('readable', 'formal')
+            or language not in ('english', 'portuguese') or layout not in ('split', 'long')):
+        raise ValueError('Choose a supported format, style, language, and layout.')
     if type(dpi) is not int or not 72 <= dpi <= 600:
         raise ValueError('Resolution must be an integer between 72 and 600 DPI.')
     default = re.sub(r'[^A-Za-z0-9_.-]+', '-', Path(filename).stem).strip('._-') or 'machine'
@@ -39,7 +41,8 @@ def export_download(definition: MachineDefinition, filename: str, options: dict,
         # All make values are controlled paths, validated enums/integers, or safe
         # names. An argv list alone would not prevent make's $(shell ...) syntax.
         command = [make, '--no-print-directory', 'table', f'MACHINE={machine}', f'OUTPUT={output}',
-                   f'FORMAT={format}', f'STYLE={style}', f'LAYOUT={layout}', f'DPI={dpi}', 'ARGS=']
+                   f'FORMAT={format}', f'STYLE={style}', f'LANGUAGE={language}',
+                   f'LAYOUT={layout}', f'DPI={dpi}', 'ARGS=']
         try:
             result = subprocess.run(command, cwd=project, capture_output=True, text=True, timeout=300)
         except subprocess.TimeoutExpired as error:
