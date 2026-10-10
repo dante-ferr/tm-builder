@@ -5,6 +5,7 @@ __pycache__/
 /build/
 /docs/book/
 /output/
+/.tmp/
 .DS_Store
 node_modules/
 web/public/assets/

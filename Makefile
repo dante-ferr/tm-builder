@@ -126,7 +126,7 @@ test-extension:
 	node editors/vscode/tests/validator.cjs
 
 test-vscode:
-	$(CODE) --user-data-dir /tmp/tm-builder-vscode-tests \
+	$(CODE) --user-data-dir "$(CURDIR)/.tmp/vscode-tests" \
 	  --extensionDevelopmentPath="$(CURDIR)/editors/vscode" \
 	  --extensionTestsPath="$(CURDIR)/editors/vscode/tests/vscode-host.cjs" \
 	  --disable-workspace-trust "$(CURDIR)"

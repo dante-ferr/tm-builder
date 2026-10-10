@@ -25,6 +25,9 @@ example `make setup CODE=/path/to/code` and
 `make open-workspace CODE=/path/to/code`. Set `TM_BUILDER_WORKSPACE` before
 setup to choose another data location.
 
+On Windows, run Make commands in WSL2 or Git Bash with GNU Make, Python 3.14,
+Poetry, and Node.js 20.9+. Formal PNG table export setup is Linux-only.
+
 Formal PNG table export also needs TeX and Poppler system packages; run
 `make setup-formal` on supported Linux distributions.
 

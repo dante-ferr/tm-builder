@@ -52,7 +52,8 @@
     ]
   },
   "scripts": {
-    "package": "cp ../../LICENSE LICENSE && cp ../../NOTICE NOTICE && mkdir -p ../../dist && vsce package --out ../../dist/tm-builder-vscode.vsix --allow-missing-repository --no-dependencies"
+    "prepackage": "node scripts/prepare-package.cjs",
+    "package": "vsce package --out ../../dist/tm-builder-vscode.vsix --allow-missing-repository --no-dependencies"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.0.0"
