@@ -81,6 +81,7 @@ export default function Workspace({theme, onCycleTheme}) {
               <button id="reset" disabled>Reset</button><button id="back" disabled>← Back</button>
               <button id="play" disabled>Play</button><button id="next" disabled>Step →</button>
               <label>Speed <select id="speed" defaultValue="2"><option value="1">1 step/s</option><option value="2">2 steps/s</option><option value="5">5 steps/s</option></select></label>
+              <label className="inline-check"><input id="follow-state" type="checkbox" defaultChecked /> Follow active state</label>
               <label>Break on state <input id="break-state" placeholder="State name" list="states" /></label>
               <datalist id="states"></datalist>
               <label>Break before rule <input id="break-rule" type="number" min="1" placeholder="Rule number" /></label>

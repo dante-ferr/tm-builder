@@ -300,7 +300,11 @@ def create_server(machine_path: Path | None = None, port=8765):
 
 
 def serve(machine_path: Path | None = None, port=8765, open_browser=True):
-    ensure_assets()
+    # In web dev mode, Next serves the UI and proxies API requests here. Avoid
+    # building the static export, which can reinstall web dependencies while
+    # the Next dev server is starting.
+    if not os.environ.get('TM_BUILDER_DEV_ORIGIN'):
+        ensure_assets()
     server = create_server(machine_path, port)
     url = f'http://127.0.0.1:{server.server_port}'
     print(f'Diagram: {url}\nWatching: {machine_path or PROJECT / "machines"}\nPress Ctrl+C to stop.', flush=True)

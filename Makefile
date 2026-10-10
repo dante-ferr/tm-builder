@@ -9,6 +9,7 @@ MACHINE ?= machines/copy.yaml
 INPUTS ?=
 MAX_STEPS ?= 1000
 PORT ?= 8765
+DEV_PORT ?= 3000
 FORMAT ?= image
 STYLE ?= readable
 LAYOUT ?= split
@@ -16,7 +17,7 @@ DPI ?= 200
 OUTPUT ?= output/$(notdir $(basename $(MACHINE)))$(if $(filter table,$@),-$(STYLE).$(if $(filter image,$(FORMAT)),png,$(FORMAT)),.svg)
 ARGS ?=
 
-.PHONY: help setup python-install web-install editor-install build extension install-extension view run graph table check check-all schemas test test-extension test-vscode
+.PHONY: help setup python-install web-install editor-install build extension install-extension view dev run graph table check check-all schemas test test-extension test-vscode
 
 help:
 	@printf '%s\n' \
@@ -25,6 +26,7 @@ help:
 	  'make extension         Package the VS Code extension' \
 	  'make install-extension Package and install the VS Code extension' \
 	  'make view              Open the live diagram (MACHINE=..., PORT=...)' \
+	  'make dev               Run the app with live code reload (PORT=..., DEV_PORT=...)' \
 	  'make run               Execute a machine (MACHINE=..., INPUTS=..., MAX_STEPS=...)' \
 	  'make graph             Export SVG or DOT (MACHINE=..., OUTPUT=...)' \
 	  'make table             Export transitions (FORMAT=csv|image|tex, STYLE=readable|formal)' \
@@ -64,6 +66,15 @@ install-extension: extension
 
 view:
 	$(TM_BUILDER) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) --port "$(PORT)" $(ARGS)
+
+# Run the Python API and Next.js together. Next proxies /api to the API server.
+dev: web-install
+	@bash -c 'set -m; \
+	  TM_BUILDER_DEV_ORIGIN="http://127.0.0.1:$(DEV_PORT)" $(TM_BUILDER) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) --port "$(PORT)" --no-open $(ARGS) & api=$$!; \
+	  $(NPM) --prefix web run dev -- --port "$(DEV_PORT)" & web=$$!; \
+	  trap '\''kill $$api $$web 2>/dev/null || true; wait 2>/dev/null || true'\'' EXIT INT TERM; \
+	  python3 -c '\''import time, webbrowser; time.sleep(1); webbrowser.open("http://127.0.0.1:$(DEV_PORT)")'\''; \
+	  wait -n $$api $$web; status=$$?; kill $$api $$web 2>/dev/null || true; wait 2>/dev/null || true; exit $$status'
 
 run:
 	$(TM_BUILDER) run "$(MACHINE)" $(if $(strip $(INPUTS)),--inputs-file "$(INPUTS)",) --max-steps "$(MAX_STEPS)" $(ARGS)

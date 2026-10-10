@@ -33,6 +33,7 @@ readable images, CSV, and LaTeX source exports do not need it.
 | Command | Action |
 | --- | --- |
 | `make view` | Open the viewer and debugger |
+| `make dev` | Run the viewer with live code reload |
 | `make check` | Validate a machine |
 | `make run` | Run with blank tapes |
 | `make run INPUTS=inputs/copy.yaml` | Run with a tape setup |
@@ -46,6 +47,11 @@ machine. `make` lists all commands. For example:
 ```bash
 make run MACHINE=machines/single_tape.yaml INPUTS=inputs/binary.yaml
 ```
+
+For web development, run `make dev`. It starts the Python API and Next.js
+development server together and opens the viewer at `http://127.0.0.1:3000`.
+Stop both servers with Ctrl+C. Set `DEV_PORT` or `PORT` to change the web or API
+port. `make view` continues to serve the built static viewer.
 
 ## Transition tables
 
