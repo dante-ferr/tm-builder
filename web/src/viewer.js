@@ -112,8 +112,41 @@ export function mountViewer(root) {
       if (disposed || version !== selectionVersion) return;
       if (!response.ok) throw new Error(result.error || 'Machine unavailable');
       $('library-status').textContent = '';
+      if (data.source === undefined && library.machines.some(entry =>
+        entry.filename === data.filename && entry.example))
+        await loadExampleInput(data.filename, version);
     } catch (error) { if (!disposed) $('library-status').textContent = error.message; }
     finally { if (!disposed && version === selectionVersion) { selectionBusy = false; $('machine-select').disabled = false; $('machine-file').disabled = false; } }
+  }
+  async function loadExampleInput(machineFilename, version) {
+    const machineEntry = library.machines.find(entry => entry.filename === machineFilename);
+    const pairedInputs = {
+      'copy.yaml': 'copy.yaml',
+      'single_tape.yaml': 'binary.yaml',
+      'nondeterministic_contains_one.yaml': 'binary.yaml',
+    };
+    const inputFilename = machineEntry?.example ? pairedInputs[machineFilename] : undefined;
+    const token = ++inputRequest;
+    $('input-select').value = '';
+    if (!inputFilename) {
+      $('setup').value = 'tapes: []';
+      clearTrace('Machine changed. Load a new trace.');
+      $('run').disabled = !machine;
+      return;
+    }
+    try {
+      const response = await fetch('/api/input?filename=' + encodeURIComponent(inputFilename));
+      const result = await response.json();
+      if (disposed || version !== selectionVersion || token !== inputRequest) return;
+      if (!response.ok) throw new Error(result.error || 'Input unavailable');
+      $('input-select').value = inputFilename;
+      $('setup').value = result.source;
+      clearTrace('Example input loaded. Load a trace to inspect the tapes.');
+      $('run').disabled = !machine;
+    } catch (error) {
+      if (!disposed && version === selectionVersion && token === inputRequest)
+        $('library-status').textContent = error.message;
+    }
   }
   $('hide-examples').onchange = renderLibrary;
   $('machine-select').onchange = event => {

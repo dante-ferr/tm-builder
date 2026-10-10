@@ -24,17 +24,17 @@ function ExportDialog() {
   );
 }
 
-export default function Workspace() {
+export default function Workspace({theme, onCycleTheme}) {
   return (
-    <div className="workspace-shell">
+    <div className="workspace-shell" data-theme={theme}>
       <aside className="sidebar" aria-label="Workspace setup">
-        <a className="brand" href="#" aria-label="tm-builder home">
+        <a className="brand" href="#" aria-label="TMBuilder home">
           <svg className="brand-mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
             <rect x="3" y="3" width="34" height="34" rx="10" fill="none" stroke="currentColor" strokeWidth="2" />
             <circle cx="13" cy="13" r="3" fill="currentColor" /><circle cx="27" cy="13" r="3" fill="currentColor" />
             <circle cx="20" cy="27" r="3" fill="currentColor" /><path d="M15.5 14.5 18 24m6.5-9.5L22 24m-5-10h6" stroke="currentColor" strokeWidth="1.7" />
           </svg>
-          <span className="brand-copy"><strong>tm-builder</strong><small>Machine debugger</small></span>
+          <span className="brand-copy"><strong>TMBuilder</strong><small>Turing machine debugger</small></span>
         </a>
 
         <section className="sidebar-section library" aria-label="Machine library">
@@ -66,7 +66,7 @@ export default function Workspace() {
       <main className="workspace-main">
         <header className="workspace-header">
           <div className="workspace-title"><p className="eyebrow">MACHINE WORKSPACE</p><h1 id="title">Machine diagram</h1><div id="path"></div></div>
-          <div className="tools" aria-label="Graph tools"><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button><button id="export-open">Export table…</button><button id="download" disabled>Download SVG</button></div>
+          <div className="tools" aria-label="Graph tools"><button id="theme-toggle" onClick={onCycleTheme} aria-label={`Theme: ${theme}. Click to change theme.`} title={`Theme: ${theme}`}>◐ <span>Theme: {theme[0].toUpperCase() + theme.slice(1)}</span></button><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button><button id="export-open">Export table…</button><button id="download" disabled>Download SVG</button></div>
         </header>
 
         <div className="workspace-content">

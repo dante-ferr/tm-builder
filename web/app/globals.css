@@ -125,3 +125,57 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: -.7px; margin-bottom: 7p
 }
 @media (max-width: 420px) { .setup-grid, .export-grid { grid-template-columns: 1fr; } .controls { padding: 16px; } .export-actions { align-items: stretch; flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+
+/* The workspace keeps the sidebar palette and switches the working area. */
+.workspace-shell[data-theme="dark"] { color-scheme: dark; color: #dce5ef; background: #101923; --line: #2c3948; --muted: #94a2b3; }
+.workspace-shell[data-theme="dark"] .workspace-header,
+.workspace-shell[data-theme="dark"] .graph-panel,
+.workspace-shell[data-theme="dark"] .playback-panel,
+.workspace-shell[data-theme="dark"] .export-dialog { background: #172331; color: #dce5ef; }
+.workspace-shell[data-theme="dark"] button,
+.workspace-shell[data-theme="dark"] input,
+.workspace-shell[data-theme="dark"] select,
+.workspace-shell[data-theme="dark"] textarea { background-color: #202e3d; border-color: #39495b; color: #dce5ef; }
+.workspace-shell[data-theme="dark"] button:hover:not(:disabled) { background: #2b3d4e; border-color: #668b84; }
+.workspace-shell[data-theme="dark"] .graph-canvas { background: radial-gradient(#344253 .8px, transparent .8px) 0 0 / 18px 18px, #111c28; }
+.workspace-shell[data-theme="dark"] .debugger-output { background: #131e2a; }
+.workspace-shell[data-theme="dark"] .cell { background: #202e3d; border-color: #39495b; color: #e3eaf2; }
+.workspace-shell[data-theme="dark"] .cell small { color: #a1afbe; }
+.workspace-shell[data-theme="dark"] .cell.head { background: #21483f; border-color: #39bfa4; }
+.workspace-shell[data-theme="dark"] .cell.written { background: #4b4021; }
+.workspace-shell[data-theme="dark"] .tape-label,
+.workspace-shell[data-theme="dark"] #rule-details { color: #a6b4c4; }
+.workspace-shell[data-theme="dark"] .graph-empty strong { color: #c4d0dc; }
+.workspace-shell[data-theme="dark"] .live-pill { color: #8bd3bf; background: #1d3835; border-color: #31564e; }
+.workspace-shell[data-theme="dark"] #play { background: #21483f; color: #8de0cb; }
+.workspace-shell[data-theme="dark"] #download,
+.workspace-shell[data-theme="dark"] #export-submit { background: var(--accent); color: white; }
+.workspace-shell[data-theme="dark"] .export-dialog { border-color: var(--line); }
+.workspace-shell[data-theme="dark"] .export-dialog::backdrop { background: #050a10b8; }
+@media (prefers-color-scheme: dark) {
+  .workspace-shell[data-theme="system"] { color-scheme: dark; color: #dce5ef; background: #101923; --line: #2c3948; --muted: #94a2b3; }
+  .workspace-shell[data-theme="system"] .workspace-header,
+  .workspace-shell[data-theme="system"] .graph-panel,
+  .workspace-shell[data-theme="system"] .playback-panel,
+  .workspace-shell[data-theme="system"] .export-dialog { background: #172331; color: #dce5ef; }
+  .workspace-shell[data-theme="system"] button,
+  .workspace-shell[data-theme="system"] input,
+  .workspace-shell[data-theme="system"] select,
+  .workspace-shell[data-theme="system"] textarea { background-color: #202e3d; border-color: #39495b; color: #dce5ef; }
+  .workspace-shell[data-theme="system"] button:hover:not(:disabled) { background: #2b3d4e; border-color: #668b84; }
+  .workspace-shell[data-theme="system"] .graph-canvas { background: radial-gradient(#344253 .8px, transparent .8px) 0 0 / 18px 18px, #111c28; }
+  .workspace-shell[data-theme="system"] .debugger-output { background: #131e2a; }
+  .workspace-shell[data-theme="system"] .cell { background: #202e3d; border-color: #39495b; color: #e3eaf2; }
+  .workspace-shell[data-theme="system"] .cell small { color: #a1afbe; }
+  .workspace-shell[data-theme="system"] .cell.head { background: #21483f; border-color: #39bfa4; }
+  .workspace-shell[data-theme="system"] .cell.written { background: #4b4021; }
+  .workspace-shell[data-theme="system"] .tape-label,
+  .workspace-shell[data-theme="system"] #rule-details { color: #a6b4c4; }
+  .workspace-shell[data-theme="system"] .graph-empty strong { color: #c4d0dc; }
+  .workspace-shell[data-theme="system"] .live-pill { color: #8bd3bf; background: #1d3835; border-color: #31564e; }
+  .workspace-shell[data-theme="system"] #play { background: #21483f; color: #8de0cb; }
+  .workspace-shell[data-theme="system"] #download,
+  .workspace-shell[data-theme="system"] #export-submit { background: var(--accent); color: white; }
+  .workspace-shell[data-theme="system"] .export-dialog { border-color: var(--line); }
+  .workspace-shell[data-theme="system"] .export-dialog::backdrop { background: #050a10b8; }
+}

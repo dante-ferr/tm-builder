@@ -1,8 +1,9 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'tm-builder · Machine workspace',
+  title: 'TMBuilder · Turing machine debugger',
   description: 'Explore Turing machines, inspect transitions, and replay your tapes.',
+  icons: {icon: '/icon.svg'},
 };
 
 export default function RootLayout({children}) {
