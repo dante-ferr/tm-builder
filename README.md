@@ -7,14 +7,23 @@ machines in YAML.
 
 ```bash
 make setup
-make install-extension
 ```
 
 Setup installs dependencies and creates `~/Documents/TM Builder/`, seeding its
 `machines/` and `inputs/` folders with examples. Existing files are preserved.
-Open that folder in VS Code to edit machines. Set `TM_BUILDER_WORKSPACE` to use
-another location. For VS Code diagnostics, set `tm-builder.projectPath` to this
-repository if the extension cannot find its Python environment.
+It creates a private VS Code workspace configuration in the platform's app
+config directory and installs the tm-builder extension when the VS Code `code`
+command is available. Open the configured workspace with:
+
+```bash
+make open-workspace
+```
+
+Machine files under `machines/` then get syntax, schema, and type diagnostics.
+If the VS Code CLI is not on `PATH`, pass its executable to both commands, for
+example `make setup CODE=/path/to/code` and
+`make open-workspace CODE=/path/to/code`. Set `TM_BUILDER_WORKSPACE` before
+setup to choose another data location.
 
 Formal PNG table export also needs TeX and Poppler system packages; run
 `make setup-formal` on supported Linux distributions.

@@ -9,16 +9,22 @@ user workspace's matching folder.
 
 | Command | Effect |
 | --- | --- |
-| `make setup` | Install Python, web, and editor dependencies, build the web UI, then seed the user workspace. |
+| `make setup` | Install dependencies, build the web UI, seed the user workspace, configure a `.code-workspace` file, and install the VS Code extension when the `code` command is available. |
 | `make install-extension` | Package and install the local VS Code extension. |
+| `make open-workspace` | Open the configured machine workspace in VS Code. |
 | `make setup-formal` | Install OS packages needed for formal PNG table exports on supported Linux distributions. |
 
 The default workspace is `~/Documents/TM Builder/`. `make setup` creates its
 `machines/` and `inputs/` folders and copies the examples from
 `data/examples/`. It only copies missing files, so later setup runs preserve
-local edits. Set `TM_BUILDER_WORKSPACE` before running a command to use another
-workspace. To use a shared Git repository, initialize Git in the workspace and
-add a remote, or point the variable at an existing clone.
+local edits. Setup writes the VS Code workspace file in the platform's private
+application config directory, with the repository's Python environment and
+machine/input schemas configured. `make open-workspace` opens it; edit files
+under `machines/`. If the `code` command is unavailable, pass
+`CODE=/path/to/code` to setup and open-workspace.
+Set `TM_BUILDER_WORKSPACE` before setup to use another data workspace. To use a
+shared Git repository, initialize Git in the workspace and add a remote, or
+point the variable at an existing clone.
 
 ## Run and inspect machines
 

@@ -57,7 +57,8 @@ def main() -> None:
             target.write_text(json.dumps(model.model_json_schema(), indent=2) + "\n")
             print(target)
         elif args.command == "workspace":
-            print(ensure_workspace())
+            workspace = ensure_workspace()
+            print(workspace.parent / f"{workspace.name}.code-workspace")
         else:
             workspace = ensure_workspace()
             machine = args.machine or (workspace / "machines/copy.yaml")

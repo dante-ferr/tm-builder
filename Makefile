@@ -18,7 +18,7 @@ DPI ?= 200
 OUTPUT ?= output/$(notdir $(basename $(if $(strip $(MACHINE)),$(MACHINE),copy.yaml)))$(if $(filter table,$@),-$(STYLE).$(if $(filter image,$(FORMAT)),png,$(FORMAT)),.svg)
 ARGS ?=
 
-.PHONY: help setup setup-formal python-install web-install editor-install build extension install-extension docs-build docs-serve view dev run graph table check check-all schemas test test-extension test-vscode
+.PHONY: help setup setup-formal python-install web-install editor-install build extension install-extension open-workspace docs-build docs-serve view dev run graph table check check-all schemas test test-extension test-vscode
 
 help:
 	@printf '%s\n' \
@@ -27,6 +27,7 @@ help:
 	  'make build             Build web assets' \
 	  'make extension         Package the VS Code extension' \
 	  'make install-extension Package and install the VS Code extension' \
+	  'make open-workspace  Open the configured machine workspace in VS Code' \
 	  'make docs-build        Build the mdBook documentation' \
 	  'make docs-serve        Serve the mdBook documentation locally' \
 	  'make view              Open the live diagram (MACHINE=..., PORT=...)' \
@@ -45,6 +46,8 @@ help:
 
 setup: python-install web-install editor-install build
 	$(TM_BUILDER) workspace
+	@if command -v "$(CODE)" >/dev/null 2>&1; then $(MAKE) install-extension; \
+	else echo 'VS Code CLI not found; run make install-extension after installing the code command.'; fi
 
 setup-formal:
 	./scripts/setup-formal-deps.sh
@@ -72,6 +75,9 @@ extension: editor-install
 
 install-extension: extension
 	$(CODE) --install-extension dist/tm-builder-vscode.vsix --force
+
+open-workspace:
+	$(CODE) "$$($(TM_BUILDER) workspace)"
 
 docs-build:
 	mdbook build docs

@@ -9,6 +9,7 @@ __pycache__/
 node_modules/
 web/public/assets/
 /editors/vscode/LICENSE
+/editors/vscode/NOTICE
 .env
 .env.*
 !.env.example
