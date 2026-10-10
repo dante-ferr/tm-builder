@@ -2,8 +2,8 @@
 name = "tm-builder"
 version = "0.1.0"
 description = "Coursework workspace for designing multi-tape Turing machines"
-license = "MIT"
-authors = []
+license = "Apache-2.0"
+authors = [{ name = "Dante Ferreira" }]
 readme = "README.md"
 requires-python = ">=3.14,<4.0"
 dependencies = [

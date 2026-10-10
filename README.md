@@ -138,4 +138,4 @@ Use Node.js 20.9 or newer. `make setup` installs project dependencies;
 development checks and [web/README.md](web/README.md) for web-specific details.
 
 Simulation uses [multitape-tm](https://pypi.org/project/multitape-tm/);
-diagrams use [Viz.js](https://viz-js.com/api/). Licensed under [MIT](LICENSE).
+diagrams use [Viz.js](https://viz-js.com/api/). Licensed under [Apache-2.0](LICENSE).
