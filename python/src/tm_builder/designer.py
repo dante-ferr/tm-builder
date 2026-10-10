@@ -163,8 +163,8 @@ class DiagramSource:
         return export_download(definition, filename, data, PROJECT)
 
 
-def create_server(machine_path: Path | None = None, port=8765):
-    workspace = ensure_workspace()
+def create_server(machine_path: Path | None = None, port=8765, workspace: Path | None = None):
+    workspace = workspace or ensure_workspace()
     if machine_path is not None and not machine_path.exists() and not machine_path.is_absolute():
         candidate = workspace / 'machines' / machine_path.name
         if candidate.exists():
@@ -307,7 +307,8 @@ def serve(machine_path: Path | None = None, port=8765, open_browser=True):
     # the Next dev server is starting.
     if not os.environ.get('TM_BUILDER_DEV_ORIGIN'):
         ensure_assets()
-    server = create_server(machine_path, port)
+    workspace = ensure_workspace()
+    server = create_server(machine_path, port, workspace)
     url = f'http://127.0.0.1:{server.server_port}'
     print(f'Diagram: {url}\nWorkspace: {workspace}\nWatching: {machine_path or workspace / "machines"}\nPress Ctrl+C to stop.', flush=True)
     if open_browser:

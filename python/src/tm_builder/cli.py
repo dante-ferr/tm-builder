@@ -7,7 +7,7 @@ from pathlib import Path
 from tm_builder.definition import DefinitionError, MachineDefinition, parse_definition
 from tm_builder.simulation import simulate
 from tm_builder.inputs import InputDefinition, parse_inputs
-from tm_builder.workspace import ensure_workspace
+from tm_builder.workspace import ensure_vscode_workspace, ensure_workspace
 
 
 def main() -> None:
@@ -58,7 +58,7 @@ def main() -> None:
             print(target)
         elif args.command == "workspace":
             workspace = ensure_workspace()
-            print(workspace.parent / f"{workspace.name}.code-workspace")
+            print(ensure_vscode_workspace(workspace))
         else:
             workspace = ensure_workspace()
             machine = args.machine or (workspace / "machines/copy.yaml")
