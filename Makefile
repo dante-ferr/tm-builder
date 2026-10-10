@@ -74,6 +74,7 @@ extension: editor-install
 	$(NPM) --prefix editors/vscode run package
 
 install-extension: extension
+	@$(CODE) --uninstall-extension teocomp-local.teocomp-machines >/dev/null 2>&1 || true
 	$(CODE) --install-extension dist/tm-builder-vscode.vsix --force
 
 open-workspace:

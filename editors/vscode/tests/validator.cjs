@@ -58,7 +58,7 @@ try {
     assert.ok(entry, `A ${delay}ms timer is scheduled`);
     timers.delete(entry[0]); entry[1].callback();
   };
-  require('../extension.cjs').activate({subscriptions: []});
+  require('../extension.cjs').activate({extensionPath: path.join(root, 'editors/vscode'), subscriptions: []});
   fire(250);
   assert.equal(children[0].python, path.join(root, 'python/.venv',
     process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'));
