@@ -70,8 +70,8 @@ export default function Workspace({theme, onCycleTheme}) {
         </header>
 
         <div className="workspace-content">
-          <section className="graph-panel" aria-label="State graph">
-            <div className="panel-heading"><div><p className="eyebrow">VISUALIZATION</p><h2>STATE GRAPH</h2><p id="graph-help" className="graph-help">Scroll to zoom · Middle mouse drag to pan · Click graph for WASD / arrows</p></div><span className="live-pill"><span className="live-dot"></span>Live view</span></div>
+          <section id="graph-panel" className="graph-panel" aria-label="State graph">
+            <div className="panel-heading"><div className="graph-heading-copy"><p className="eyebrow">VISUALIZATION</p><h2>STATE GRAPH</h2><p id="graph-help" className="graph-help">Scroll to zoom · Middle mouse drag to pan · Click graph for WASD / arrows</p></div><div className="graph-heading-actions"><span className="live-pill"><span className="live-dot"></span>Live view</span><button id="graph-expand" type="button" aria-expanded="false" aria-controls="graph-panel" aria-label="Expand state graph" title="Expand state graph"><span aria-hidden="true">⛶</span></button></div></div>
             <div id="graph" className="graph-canvas" aria-label="Rendered machine diagram" aria-describedby="graph-help" tabIndex={0}><div className="graph-empty"><span className="empty-orbit" aria-hidden="true"><i></i><i></i><i></i></span><strong>Your state graph will appear here</strong><span>Choose a machine from the library to begin.</span></div></div>
           </section>
 

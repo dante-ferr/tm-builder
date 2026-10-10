@@ -5,6 +5,18 @@ export function mountViewer(root) {
   const lifetime = new AbortController();
   const graphNavigation = mountGraphNavigation($('graph'), lifetime.signal);
   const {fit, zoom} = graphNavigation;
+  const graphResizeObserver = new ResizeObserver(() => fit());
+  graphResizeObserver.observe($('graph'));
+  lifetime.signal.addEventListener('abort', () => graphResizeObserver.disconnect(), {once: true});
+  const shell = root.querySelector('.workspace-shell');
+  const expandGraph = $('graph-expand');
+  expandGraph.addEventListener('click', () => {
+    const expanded = shell.classList.toggle('graph-expanded');
+    expandGraph.setAttribute('aria-expanded', String(expanded));
+    expandGraph.title = expanded ? 'Shrink state graph' : 'Expand state graph';
+    expandGraph.setAttribute('aria-label', expanded ? 'Shrink state graph' : 'Expand state graph');
+    requestAnimationFrame(() => fit());
+  }, {signal: lifetime.signal});
   const fetch = (url, options = {}) => window.fetch(url, {...options, signal: lifetime.signal});
   let disposed = false;
   const timers = new Set();
@@ -204,13 +216,13 @@ export function mountViewer(root) {
       const base = (file || 'machine').replace(/\.ya?ml$/i, '').replace(/[^A-Za-z0-9_.-]+/g, '-').replace(/^[._-]+|[._-]+$/g, '') || 'machine';
       $('export-name').value = `${base.slice(0, 80)}-${$('export-style').value}`;
     }
-    for (const id of ['export-source', 'export-file', 'export-format', 'export-style', 'export-layout', 'export-name']) $(id).disabled = exportBusy;
+    for (const id of ['export-source', 'export-file', 'export-format', 'export-style', 'export-language', 'export-layout', 'export-name']) $(id).disabled = exportBusy;
     $('export-submit').disabled = exportBusy || !(imported ? exportFile : machine);
     $('export-submit').textContent = exportBusy ? 'Preparing download…' : 'Export & download';
   }
   $('export-open').onclick = () => { updateExport(); $('export-dialog').showModal(); };
   $('export-close').onclick = () => $('export-dialog').close();
-  for (const id of ['export-source', 'export-format', 'export-style', 'export-layout']) $(id).onchange = () => {
+  for (const id of ['export-source', 'export-format', 'export-style', 'export-language', 'export-layout']) $(id).onchange = () => {
     $('export-status').textContent = ''; updateExport();
   };
   $('export-name').oninput = () => { exportNameDirty = true; };
@@ -232,6 +244,7 @@ export function mountViewer(root) {
     const imported = $('export-source').value === 'file';
     if (!(imported ? exportFile : machine)) return;
     const data = {format: $('export-format').value, style: $('export-style').value,
+      language: $('export-language').value,
       layout: $('export-layout').value, dpi: $('export-format').value === 'image' ? Number($('export-dpi').value) : 200,
       name: $('export-name').value, ...(imported ? exportFile : {revision: machine.revision})};
     exportBusy = true; $('export-status').textContent = 'Preparing your table…'; updateExport();
