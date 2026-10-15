@@ -119,7 +119,8 @@ schemas:
 	$(TM_BUILDER) schema --kind inputs
 
 test: build
-	node --test web/tests/*.test.js
+	$(NPM) --prefix web run typecheck
+	$(NPM) --prefix web test
 	$(PYTHON) python -m unittest discover -s python/tests -v
 	$(MAKE) test-extension
 

@@ -1,44 +1,52 @@
 # tm-builder web interface
 
-The interface uses the Next.js App Router. Routes and the root layout are in
-`app/`; reusable workspace JSX lives in `src/components/`. The client workspace
-mounts the existing controller from `src/viewer.js` in an effect and calls its
-cleanup when the component unmounts. `src/render.js` remains the Node-side SVG
-renderer used by the Python exporter; the build bundles it to
-`public/assets/render.cjs`.
+A strict TypeScript application using the Next.js App Router and React. The UI
+exports statically so the Python viewer can serve both the site and its local API.
+Next's development server proxies `/api` to Python.
 
-Use Node.js 20.9 or newer. From the project root, run `make dev` to start Next
-on port 3000 and the Python API on port 8765 together. Next proxies `/api`
-requests to the API, and the viewer opens on the Next origin for live code
-reload. Set `DEV_PORT` or `PORT` to change those ports. To start the servers
-separately, use `npm run dev` here and
+Use Node.js 20.9 or newer. Run `make dev` from the project root to start Next on
+port 3000 and the Python API on port 8765. Set `DEV_PORT` or `PORT` to change the
+ports. To start them separately, run `npm run dev` here and
 `TM_BUILDER_DEV_ORIGIN=http://127.0.0.1:3000 make view` from the project root.
-`npm run build` creates a static App Router export in `out/`; `make build` runs
-this build from the project root. The Python server serves the exported site and
-API when started with `make view`.
+`TM_BUILDER_API_ORIGIN` overrides the development proxy destination.
 
-The viewer posts starting tape YAML, a step limit, and the diagram revision to
-`/api/simulate`. Stale revisions are rejected so traces always match the displayed
-machine, including unsaved IDE buffers. Traces contain initial and subsequent
-configurations, applied rules, and the final execution status and stop reason.
+Run `npm run typecheck`, `npm test`, and `npm run build` here, or `make test` from
+the project root for the production build and all repository regression checks.
+`npm run build` creates the static site in `out/` and the Node SVG renderer in
+`public/assets/render.cjs`. `make view` serves the exported application.
 
-Select Follow active state in the playback controls to center the graph on the
-executing state. Following starts at a fixed close zoom (`FOLLOW_ZOOM` in
-`src/graph-navigation.js`); wheel and button zoom remain available. Middle mouse
-dragging, WASD/arrow panning, or Fit turns following off. Pause, breakpoints,
-seeking, and the end of playback stop camera movement; the selected option starts
-following again when playback resumes. Other controls and graph resizing preserve
-following during playback.
+## Architecture
 
-Without a machine argument, the viewer starts at the machine picker. `/api/library`
-lists the user workspace’s `machines/` and `inputs/` YAML files; bundled examples are
-identified by the explicit `.gitignore` allowlist in `data/examples/`. The shared Hide examples
-checkbox filters both pickers. `/api/machine` selects a library machine or loads
-an imported file in memory; `/api/input` reads a library input into the setup editor.
+- `app/`: server route, typed metadata and root layout, loading/error/not-found
+  boundaries, and global design tokens with responsive light/dark themes.
+- `src/components/`: client workspace composition, machine/input library, graph,
+  tape playback, export dialog, and shared icons.
+- `src/hooks/`: API polling and request cancellation, playback timing, and theme
+  persistence. React owns forms, trace state, and application status.
+- `src/lib/`: shared API contracts, API/download helpers, and pure playback logic.
+- `src/graph-navigation.ts`: isolated SVG camera behavior (zoom, pan, and follow).
+  Only this boundary and the graph component manage Graphviz's generated SVG.
+- `src/render.ts`: Node renderer used by the Python SVG exporter. It uses the same
+  Graphviz library as the graph component.
 
-The Export table menu posts format, style, language, layout, DPI, and a filename to
-`/api/export`, with either the current revision or an independent imported YAML
-source. The server validates the machine, runs the shared `make table` command
-on a temporary snapshot, and returns a downloadable CSV, PNG, LaTeX file, or
-ZIP of numbered A4 pieces. The menu disables irrelevant options and reports
-progress and export errors. Imported exports do not change the selected machine.
+The workspace polls the selected machine and library, including unsaved IDE
+buffers. Requests are aborted on unmount, and selection/input/trace generations
+reject outdated results. Simulation and exports use the diagram revision so
+results match the selected machine. Traces include initial and subsequent tape
+configurations, applied rules, and a final execution status and stop reason.
+
+The library lists workspace `machines/` and `inputs/` YAML files. Bundled examples
+are identified by the explicit `.gitignore` allowlist in `data/examples/`.
+Selecting an example loads its paired input when available. Hide bundled examples
+filters both library selectors. Imported machines stay in memory; imported inputs
+populate the setup editor.
+
+Graph controls support wheel zoom, middle mouse dragging, focused WASD/arrow
+panning, Fit view, expansion (Escape to close), and SVG download. Follow active
+state starts at `FOLLOW_ZOOM` while playing. Panning or Fit turns following off;
+pause, seeking, breakpoints, and the end of playback stop camera movement.
+
+Export table supports CSV, PNG, and LaTeX, readable/formal styles, language,
+layout, and DPI. An independent imported machine can be exported without changing
+the selected diagram. The Python server validates each request and returns a file
+or a ZIP of numbered A4 pieces.

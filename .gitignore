@@ -36,3 +36,6 @@ web/public/assets/
 # Next.js build output
 /web/.next/
 /web/out/
+
+# TypeScript incremental build cache
+/web/*.tsbuildinfo

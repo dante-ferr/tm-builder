@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {FOLLOW_ZOOM, mountGraphNavigation} from '../src/graph-navigation.js';
+import {FOLLOW_ZOOM, mountGraphNavigation} from '../src/graph-navigation.ts';
 
 class Graph extends EventTarget {
   clientWidth = 800;

@@ -23,7 +23,7 @@ class ViewerAssetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             web = Path(directory)
             for name in ('out/index.html', 'public/assets/render.cjs',
-                         'src/viewer.js', 'app/globals.css'):
+                         'src/hooks/use-workspace.ts', 'app/globals.css'):
                 path = web / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text('fixture')
@@ -35,7 +35,7 @@ class ViewerAssetTests(unittest.TestCase):
                   patch('tm_builder.designer.subprocess.run') as run):
                 ensure_assets()
                 run.assert_not_called()
-                for source in ('src/viewer.js', 'app/globals.css'):
+                for source in ('src/hooks/use-workspace.ts', 'app/globals.css'):
                     with self.subTest(source=source):
                         os.utime(web / source, ns=(2_000_000_000, 2_000_000_000))
                         ensure_assets()

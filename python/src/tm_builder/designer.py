@@ -31,7 +31,7 @@ def ensure_assets():
         built_at = min((WEB_OUT / 'index.html').stat().st_mtime_ns,
                        (WEB / 'assets/render.cjs').stat().st_mtime_ns)
         sources = [WEB_PROJECT / name for name in
-                   ('package.json', 'package-lock.json', 'next.config.mjs')]
+                   ('package.json', 'package-lock.json', 'next.config.ts', 'tsconfig.json')]
         for folder in ('app', 'src'):
             sources.extend(path for path in (WEB_PROJECT / folder).rglob('*') if path.is_file())
         if all(not path.exists() or path.stat().st_mtime_ns <= built_at for path in sources):
