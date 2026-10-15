@@ -1,5 +1,5 @@
 'use client';
-import {useEffect, useState} from 'react';
+import {useEffect, useState, type ReactNode} from 'react';
 import type {WorkspaceController} from '../hooks/use-workspace';
 import type {PlaybackController} from '../hooks/use-playback';
 import type {Machine, MachineDefinition, Rule} from '../lib/types';
@@ -13,7 +13,7 @@ type Edit = {kind: 'state'; original?: string; name: string; start: boolean; rol
   | {kind: 'rule'; index?: number; rule: Rule}
   | {kind: 'settings'; name: string; model: MachineDefinition['model']; tapes: number; blank: string; input: string[]; alphabet: string[]};
 
-export function MachineEditor({workspace: w, playback, onBeginEdit}: {workspace: WorkspaceController; playback: PlaybackController; onBeginEdit?: () => void}) {
+export function MachineEditor({workspace: w, playback, onBeginEdit, actions}: {workspace: WorkspaceController; playback: PlaybackController; onBeginEdit?: () => void; actions?: ReactNode}) {
   const machine = w.selecting ? null : w.machine;
   const [tool, setTool] = useState<'inspect' | 'state' | 'transition'>('inspect');
   const [source, setSource] = useState<string | null>(null);
@@ -111,7 +111,7 @@ export function MachineEditor({workspace: w, playback, onBeginEdit}: {workspace:
   const related = edit?.kind === 'rule' && base ? base.definition.transitions.map((r, index) => ({r, index}))
     .filter(({r}) => r.from === edit.rule.from && r.to === edit.rule.to) : [];
   const rulePosition = related.findIndex(r => edit?.kind === 'rule' && r.index === edit.index);
-  const actions = <div className="inline-actions">
+  const formActions = <div className="inline-actions">
     {edit?.kind === 'state' && edit.original && <button className="icon-button danger" type="button" disabled={locked} title="Delete state and connected transitions" aria-label="Delete state and connected transitions" onClick={removeState}><Icon name="trash" size={15} /></button>}
     {edit?.kind === 'rule' && edit.index !== undefined && <button className="icon-button danger" type="button" disabled={locked} title="Delete transition" aria-label="Delete transition" onClick={() => void save({transitions: base!.definition.transitions.filter((_, i) => i !== edit.index)})}><Icon name="trash" size={15} /></button>}
     <span className="inline-save-hint">{w.saving ? 'Saving…' : 'Enter to save'}</span>
@@ -142,7 +142,7 @@ export function MachineEditor({workspace: w, playback, onBeginEdit}: {workspace:
         <SymbolList label="Tape alphabet" symbols={edit.alphabet} onChange={alphabet => setEdit({...edit, alphabet})} />
       </div>}
     </fieldset>
-    {feedback}{actions}
+    {feedback}{formActions}
   </form>;
   const tools = <div className="graph-edit-tools" role="toolbar" aria-label="Machine tools">
     <button className="icon-button" aria-label="Select and edit" title="Select and edit" aria-pressed={tool === 'inspect'} onClick={() => chooseTool('inspect')}><Icon name="cursor" size={17} /></button>
@@ -157,7 +157,7 @@ export function MachineEditor({workspace: w, playback, onBeginEdit}: {workspace:
   const help = w.saving ? 'Saving YAML…' : !w.connected ? 'Reconnecting to workspace…' : disabled ? machine?.mode === 'Unsaved VS Code buffer' ? 'Save your VS Code buffer to edit here.' : 'Choose a machine to begin.'
     : edit ? 'Edit here · Enter saves · Esc cancels' : tool === 'state' ? 'Click empty canvas to add a state.' : tool === 'transition' ? source ? `From ${source} → select destination. Esc cancels.` : 'Select source → destination. Same state twice creates a loop.'
     : 'Click a state or connection to edit · Scroll to zoom · Middle drag to pan';
-  return <StateGraph machine={machine} playback={playback} tools={tools} help={<>{!edit && error ? <span role="alert">{error}</span> : help}{machine?.mode === 'Imported file' && ' · Imported: download YAML to keep edits.'}</>}
+  return <StateGraph machine={machine} playback={playback} tools={tools} actions={actions} help={<>{!edit && error ? <span role="alert">{error}</span> : help}{machine?.mode === 'Imported file' && ' · Imported: download YAML to keep edits.'}</>}
     settings={edit?.kind === 'settings' ? <div className="graph-settings">{content}</div> : null}
     inlineEditor={edit && edit.kind !== 'settings' ? {key: `${base?.revision}:${edit.kind}:${edit.kind === 'state' ? edit.original || 'new' : edit.index ?? 'new'}`, anchor, content,
       height: edit.kind === 'state' ? 190 : Math.min(330, 155 + edit.rule.tapes.length * 36)} : null}

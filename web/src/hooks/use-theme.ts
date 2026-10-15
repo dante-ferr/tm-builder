@@ -9,10 +9,9 @@ export function useTheme() {
       if (saved === 'light' || saved === 'dark' || saved === 'system') setTheme(saved);
     } catch { /* The workspace also works when storage is unavailable. */ }
   }, []);
-  function cycleTheme() {
-    const next = {system: 'light', light: 'dark', dark: 'system'}[theme] as Theme;
+  function chooseTheme(next: Theme) {
     setTheme(next);
     try { localStorage.setItem('tm-builder-theme', next); } catch { /* Keep this session's preference. */ }
   }
-  return {theme, cycleTheme};
+  return {theme, setTheme: chooseTheme};
 }
