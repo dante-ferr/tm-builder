@@ -11,18 +11,24 @@ user workspace's matching folder.
 | --- | --- |
 | `make setup` | Install dependencies, build the web UI, seed the user workspace, configure a `.code-workspace` file, and install the VS Code extension when the `code` command is available. |
 | `make install-extension` | Package and install the local VS Code extension. |
-| `make open-workspace` | Open the configured machine workspace in VS Code. The viewer **Open workspace folder** button runs this after the current machine file is saved. |
+| `make open-workspace` | Open the configured machine workspace in VS Code. |
 | `make setup-formal` | Install OS packages needed for formal PNG table exports on supported Linux distributions. |
 
-The default workspace is `~/Documents/TM Builder/`. `make setup` creates its
+The default workspace is a `TM Builder` folder inside the system Documents
+folder. Windows uses the Documents known folder, including a translated folder
+such as `Documentos`. Linux uses `XDG_DOCUMENTS_DIR`. `make setup` creates its
 `machines/` and `inputs/` folders and copies the examples from
 `data/examples/`. It only copies missing files, so later setup runs preserve
 local edits. Setup writes the VS Code workspace file in the platform's private
 application config directory, with the repository's Python environment and
-machine/input schemas configured. `make open-workspace` opens it; edit files
-under `machines/`. If the `code` command is unavailable, pass
-`CODE=/path/to/code` to setup and open-workspace.
-Set `TM_BUILDER_WORKSPACE` before setup to use another data workspace. To use a
+machine/input schemas configured. `make open-workspace` opens it with the `code`
+command; edit files under `machines/`. If the `code` command is unavailable, pass
+`CODE=/path/to/code` to setup and open-workspace. The viewer's **Open workspace
+folder** button opens the same file with the application associated with it on
+Windows, macOS, and Linux, after the current machine file is saved. Set `CODE`
+to choose that editor explicitly.
+Set `TM_BUILDER_WORKSPACE` to a full path before setup, or before starting the
+viewer, to replace that Documents location. To use a
 shared Git repository, initialize Git in the workspace and add a remote, or
 point the variable at an existing clone.
 
@@ -55,8 +61,11 @@ user workspace. The viewer instead opens the picker.
 
 `make table` accepts `FORMAT=csv|image|tex`, `STYLE=readable|formal`,
 `LANGUAGE=english|portuguese`, `LAYOUT=split|long`, `DPI=72..600`, and `OUTPUT=...`.
-The defaults are a readable split PNG in English at 200 DPI. Formal PNG output
-requires TeX Live and Poppler; `make setup-formal` handles supported Linux systems.
+The defaults are a readable split PNG in English at 200 DPI. The viewer uses
+the same Python exporter, including on Windows, and does not call Make. Formal
+PNG output uses LuaLaTeX or XeLaTeX and Poppler when they are on `PATH`.
+`make setup-formal` installs them on supported Linux systems. Without those
+tools, the viewer draws the formal table directly.
 
 ## Development
 

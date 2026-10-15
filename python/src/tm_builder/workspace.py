@@ -17,10 +17,114 @@ INPUT_EXAMPLES = ("copy.yaml", "binary.yaml", "copy_preloaded.yaml", "binary_cou
 
 
 def workspace_path() -> Path:
+    """Return the user data directory.
+
+    TM_BUILDER_WORKSPACE replaces the whole directory when it is set. Otherwise
+    the data lives in ``TM Builder`` inside the system's Documents folder,
+    including a translated folder such as Documentos.
+    """
     configured = os.environ.get("TM_BUILDER_WORKSPACE")
     if configured:
         return Path(configured).expanduser().resolve()
-    return (Path.home() / "Documents" / "TM Builder").resolve()
+    return (documents_directory() / "TM Builder").resolve()
+
+
+def documents_directory() -> Path:
+    """Return the Documents folder the operating system actually uses."""
+    if sys.platform == "win32":
+        found = _windows_documents()
+    elif sys.platform == "darwin":
+        found = Path.home() / "Documents"
+    else:
+        found = _xdg_documents()
+    if found is not None:
+        return found
+    home = Path.home()
+    for name in ("Documents", "Documentos"):
+        candidate = home / name
+        if candidate.is_dir():
+            return candidate
+    return home / "Documents"
+
+
+def _expand_home(value: str) -> Path | None:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1]
+    home = str(Path.home())
+    expanded = []
+    index = 0
+    while index < len(value):
+        if value.startswith("${HOME}", index):
+            expanded.append(home)
+            index += len("${HOME}")
+        elif value.startswith("$HOME", index) and not value[index + 5:index + 6].isalnum() and value[index + 5:index + 6] != "_":
+            expanded.append(home)
+            index += len("$HOME")
+        else:
+            expanded.append(value[index])
+            index += 1
+    text = "".join(expanded).strip()
+    if not text:
+        return None
+    path = Path(text).expanduser()
+    if not path.is_absolute():
+        path = Path.home() / path
+    return path
+
+
+def _xdg_documents() -> Path | None:
+    configured = os.environ.get("XDG_DOCUMENTS_DIR", "").strip()
+    if configured:
+        return _expand_home(configured)
+    config_home = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    base = Path(config_home).expanduser() if config_home and Path(config_home).is_absolute() else Path.home() / ".config"
+    try:
+        lines = (base / "user-dirs.dirs").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        entry = line.strip()
+        if not entry or entry.startswith("#") or "=" not in entry:
+            continue
+        key, value = entry.split("=", 1)
+        if key.strip() == "XDG_DOCUMENTS_DIR":
+            return _expand_home(value.strip())
+    return None
+
+
+def _windows_documents() -> Path | None:
+    """Return the Windows Known Folder for Documents, including a redirected one."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+    except OSError:
+        return None
+
+    class GUID(ctypes.Structure):
+        _fields_ = [
+            ("Data1", wintypes.DWORD),
+            ("Data2", wintypes.WORD),
+            ("Data3", wintypes.WORD),
+            ("Data4", wintypes.BYTE * 8),
+        ]
+
+    folder = GUID()
+    folder.Data1 = 0xFDD39AD0
+    folder.Data2 = 0xFF42
+    folder.Data3 = 0x40F4
+    folder.Data4[:] = (0xBA, 0x4B, 0xF6, 0xF6, 0xB6, 0xF1, 0xD0, 0xE4)
+    pointer = ctypes.c_wchar_p()
+    shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+    ole32 = ctypes.WinDLL("ole32", use_last_error=True)
+    shell32.SHGetKnownFolderPath.argtypes = [
+        ctypes.POINTER(GUID), wintypes.DWORD, wintypes.HANDLE, ctypes.POINTER(ctypes.c_wchar_p)]
+    shell32.SHGetKnownFolderPath.restype = ctypes.c_long
+    ole32.CoTaskMemFree.argtypes = [ctypes.c_void_p]
+    if shell32.SHGetKnownFolderPath(ctypes.byref(folder), 0, None, ctypes.byref(pointer)) != 0:
+        return None
+    value = pointer.value
+    ole32.CoTaskMemFree(pointer)
+    return Path(value) if value else None
 
 
 def config_dir() -> Path:
@@ -35,21 +139,70 @@ def config_dir() -> Path:
 
 
 def open_in_editor() -> None:
-    """Open the configured workspace with `make open-workspace`."""
+    """Open the user workspace in the editor chosen for its workspace file."""
+    workspace_file = ensure_vscode_workspace(ensure_workspace())
+    explicit = os.environ.get("CODE", "").strip()
+    if explicit:
+        resolved = shutil.which(explicit)
+        if resolved is None and not Path(explicit).is_file():
+            raise RuntimeError(f"Editor command not found: {explicit}")
+        _launch([resolved or explicit, str(workspace_file)])
+        return
     try:
-        completed = subprocess.run(
-            ["make", "open-workspace"],
-            cwd=PROJECT,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
+        _open_with_default_app(workspace_file)
+    except OSError:
+        command = _editor_command()
+        if command is None:
+            raise RuntimeError(
+                "Could not open the workspace. Install VS Code or Cursor, or set CODE to your editor command.")
+        _launch([*command, str(workspace_file)])
+
+
+def _open_with_default_app(path: Path) -> None:
+    """Open a file with the application the user associated with it."""
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa: S606 — the associated editor, not a shell command
+        return
+    opener = "open" if sys.platform == "darwin" else "xdg-open"
+    try:
+        completed = subprocess.run([opener, str(path)], check=False, timeout=30,
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired) as error:
-        raise RuntimeError(f"Could not run make open-workspace: {error}") from error
+        raise OSError(str(error)) from error
     if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "make open-workspace failed").strip()
-        raise RuntimeError(detail.splitlines()[-1])
+        raise OSError(f"{opener} could not open {path.name}")
+
+
+def _editor_command() -> list[str] | None:
+    for name in ("code", "cursor", "codium", "code-insiders"):
+        found = shutil.which(name)
+        if found:
+            return [found]
+    if sys.platform != "win32":
+        return None
+    local = os.environ.get("LOCALAPPDATA", "")
+    program = os.environ.get("PROGRAMFILES", "")
+    candidates = [
+        Path(local) / "Programs/Microsoft VS Code/bin/code.cmd",
+        Path(program) / "Microsoft VS Code/bin/code.cmd",
+        Path(local) / "Programs/cursor/resources/app/bin/cursor.cmd",
+        Path(local) / "cursor/resources/app/bin/cursor.cmd",
+        Path(program) / "Cursor/resources/app/bin/cursor.cmd",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return [str(candidate)]
+    return None
+
+
+def _launch(command: list[str]) -> None:
+    if sys.platform == "win32" and Path(command[0]).suffix.lower() in {".cmd", ".bat"}:
+        command = ["cmd", "/d", "/c", *command]
+    try:
+        subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=sys.platform != "win32")
+    except OSError as error:
+        raise RuntimeError(f"Could not open the workspace: {error}") from error
 
 
 def ensure_workspace() -> Path:

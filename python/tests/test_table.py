@@ -155,6 +155,14 @@ class TableTests(unittest.TestCase):
             self.assertEqual(run.call_args.args[0], ['/tools/kpsewhich', 'lmroman10-regular.otf'])
             self.assertEqual(existing.read_bytes(), b'previous')
 
+    def test_formal_image_without_latex_draws_a_png(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'table.png'
+            with patch('tm_builder.table.shutil.which', return_value=None):
+                outputs = export_table(load('copy.yaml'), target, style='formal', dpi=72)
+            self.assertEqual(outputs, [target.with_name('table-a4-001.png')])
+            self.assertTrue(outputs[0].read_bytes().startswith(b'\x89PNG'))
+
     def test_tex_font_cache_survives_export_directories_and_respects_overrides(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 
 from tm_builder.definition import MachineDefinition
@@ -109,7 +110,13 @@ def _run(command, directory, description):
         # Reuse LuaLaTeX's font database across exports instead of rebuilding it
         # in a temporary directory for each download. Respect custom TeX paths.
         if not all(environment.get(key) for key in ('TEXMFCACHE', 'TEXMFVAR')):
-            cache = Path(environment.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'tm-builder' / 'tex'
+            if environment.get('XDG_CACHE_HOME'):
+                cache_home = Path(environment['XDG_CACHE_HOME'])
+            elif sys.platform == 'win32' and environment.get('LOCALAPPDATA'):
+                cache_home = Path(environment['LOCALAPPDATA'])
+            else:
+                cache_home = Path.home() / '.cache'
+            cache = cache_home / 'tm-builder' / 'tex'
             try:
                 cache.mkdir(parents=True, exist_ok=True)
             except OSError:
@@ -142,8 +149,8 @@ def _latex_images(definition, work, style, layout, dpi, language):
             raise RuntimeError('Checking LaTeX fonts timed out after 10 seconds.') from error
         if font.returncode or not font.stdout.strip():
             raise RuntimeError(
-                'Latin Modern fonts are missing. Run make setup-formal in a terminal, then retry. '
-                'On Arch Linux: sudo pacman -S --needed texlive-fontsrecommended.')
+                'Latin Modern fonts are missing. Install the TeX Live fontsrecommended collection '
+                'and put its binaries on PATH. On supported Linux systems, run make setup-formal.')
     (work / 'table.tex').write_text(transition_table(definition, style=style, layout=layout,
                                                      language=language), encoding='utf-8')
     for _ in range(2):
@@ -169,6 +176,12 @@ def _font(size, bold=False):
     name = 'DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'
     paths = [name, '/usr/share/fonts/TTF/' + name,
              '/usr/share/fonts/truetype/dejavu/' + name]
+    if sys.platform == 'win32':
+        fonts = Path(os.environ.get('WINDIR', r'C:\Windows')) / 'Fonts'
+        windows = ('arialbd.ttf', 'segoeuib.ttf') if bold else ('arial.ttf', 'segoeui.ttf')
+        paths.extend(str(fonts / filename) for filename in windows)
+    elif sys.platform == 'darwin':
+        paths.append('/System/Library/Fonts/Supplemental/' + ('Arial Bold.ttf' if bold else 'Arial.ttf'))
     matcher = shutil.which('fc-match')
     if matcher:
         family = 'DejaVu Sans:style=Bold' if bold else 'DejaVu Sans'
@@ -187,14 +200,45 @@ def _font(size, bold=False):
     return ImageFont.load_default(size=size)
 
 
-def _readable_images(definition, layout, dpi, language):
+def _formal_text(definition):
+    """Formal rows without TeX, so image export works where LaTeX is not installed."""
+    def symbol(value, blank):
+        return '⊔' if blank is not None and value == blank else value
+
+    def tuple_text(values, blank):
+        values = [symbol(value, blank) for value in values]
+        if len(values) == 1:
+            return values[0]
+        return '(' + ', '.join(values) + ')'
+
+    groups = {}
+    for transition in definition.transitions:
+        key = (transition.source, tuple(action[0] for action in transition.tapes))
+        groups.setdefault(key, []).append(transition)
+    rows = []
+    for (source, read), transitions in groups.items():
+        left = f'({source}, {tuple_text(read, definition.blank)})'
+        alternatives = []
+        for transition in transitions:
+            alternatives.append('(' + ', '.join((
+                transition.to,
+                tuple_text([action[1] for action in transition.tapes], definition.blank),
+                tuple_text([action[2] for action in transition.tapes], None),
+            )) + ')')
+        right = alternatives[0]
+        if definition.model == 'nondeterministic':
+            right = '{' + ', '.join(dict.fromkeys(alternatives)) + '}'
+        rows.append([left, right])
+    return ['(q, a)', 'δ(q, a)'], rows
+
+
+def _text_images(headers, rows, fractions, layout, dpi, language):
     from PIL import Image, ImageDraw
-    headers, rows = table_cells(definition, language=language)
     width, limit = round(174 * dpi / 25.4), round(261 * dpi / 25.4)
     pad = max(2, round(4 * dpi / 72))
     font, bold = _font(round(10 * dpi / 72)), _font(round(10 * dpi / 72), True)
     line = round(13 * dpi / 72)
-    widths = [round(width * w) for w in (.18, .23, .18, .23)]
+    widths = [round(width * fraction) for fraction in fractions]
     widths.append(width - sum(widths))
 
     def wrap(text, available):
@@ -212,7 +256,8 @@ def _readable_images(definition, layout, dpi, language):
         cells = [wrap(text, w - 2 * pad) for text, w in zip(row, widths)]
         prepared.append((cells, max(map(len, cells)) * line + 2 * pad))
     if not prepared:
-        prepared = [([[_NO_TRANSITIONS[language]], [], [], [], []], line + 2 * pad)]
+        empty = [[_NO_TRANSITIONS[language]], *[[] for _ in headers[1:]]]
+        prepared = [(empty, line + 2 * pad)]
     header_height = line + 2 * pad
     groups, group, height = [], [], header_height + 2
     for row in prepared:
@@ -249,6 +294,16 @@ def _readable_images(definition, layout, dpi, language):
     return images
 
 
+def _readable_images(definition, layout, dpi, language):
+    headers, rows = table_cells(definition, language=language)
+    return _text_images(headers, rows, (.18, .23, .18, .23), layout, dpi, language)
+
+
+def _formal_images(definition, layout, dpi, language):
+    headers, rows = _formal_text(definition)
+    return _text_images(headers, rows, (.40,), layout, dpi, language)
+
+
 def export_table(definition: MachineDefinition, target: Path, *, format=None,
                  style='readable', layout='split', split_a4=False, dpi=200,
                  language='english') -> list[Path]:
@@ -283,7 +338,14 @@ def export_table(definition: MachineDefinition, target: Path, *, format=None,
             return outputs
     with tempfile.TemporaryDirectory(prefix='tm-builder-table-') as directory:
         if style == 'formal' or format == 'tex':
-            images = _latex_images(definition, Path(directory), style, layout, dpi, language)
+            engine = shutil.which('lualatex') or shutil.which('xelatex')
+            if engine and shutil.which('pdftoppm'):
+                images = _latex_images(definition, Path(directory), style, layout, dpi, language)
+            elif format == 'image' and style == 'formal':
+                images = _formal_images(definition, layout, dpi, language)
+            else:
+                raise RuntimeError(
+                    'Splitting a TeX table into images requires LuaLaTeX or XeLaTeX and pdftoppm (Poppler) on PATH.')
         else:
             images = _readable_images(definition, layout, dpi, language)
         # Stage every image before replacing any existing output.

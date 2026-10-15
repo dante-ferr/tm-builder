@@ -1,4 +1,4 @@
-"""Browser exports invoke make with validated arguments and snapshot the machine."""
+"""Browser exports call the Python table exporter and snapshot the machine."""
 
 import csv
 from http.client import HTTPConnection
@@ -43,40 +43,39 @@ class WebExportTests(unittest.TestCase):
                 self.assertEqual(download.call_args.args[1], 'imported.yaml')
             self.assertEqual(path.read_text(), SOURCE)
 
-    def test_validation_prevents_make_expression_injection(self):
+    def test_validation_rejects_unsafe_export_options(self):
         definition = parse_definition(SOURCE)[0]
         for options in ({'name': '$(shell touch hacked)'}, {'name': '../table'},
                         {'format': '$(shell echo bad)'}, {'style': 'other'}, {'layout': 'other'},
                         {'dpi': True}, {'dpi': 601}, {'dpi': 100.5}):
-            with self.subTest(options=options), patch('tm_builder.web_export.subprocess.run') as run:
+            with self.subTest(options=options), patch('tm_builder.web_export.export_table') as export:
                 with self.assertRaises(ValueError):
-                    export_download(definition, 'machine.yaml', options, ROOT)
-                run.assert_not_called()
+                    export_download(definition, 'machine.yaml', options)
+                export.assert_not_called()
 
-    def test_make_arguments_and_numeric_zip_order(self):
+    def test_split_images_download_in_page_order(self):
         definition = parse_definition(SOURCE)[0]
-        def run(command, **kwargs):
-            self.assertEqual(command[1:3], ['--no-print-directory', 'table'])
-            values = dict(value.split('=', 1) for value in command[3:])
-            self.assertEqual(values['FORMAT'], 'image')
-            self.assertEqual(values['STYLE'], 'formal')
-            self.assertEqual(values['LAYOUT'], 'split')
-            self.assertEqual(values['DPI'], '300')
-            self.assertEqual(values['ARGS'], '')
-            self.assertEqual(parse_definition(Path(values['MACHINE']).read_text())[0].name, definition.name)
-            output = Path(values['OUTPUT'])
+
+        def produce(_definition, target, **kwargs):
+            self.assertEqual(kwargs['style'], 'formal')
+            self.assertEqual(kwargs['layout'], 'split')
+            self.assertEqual(kwargs['dpi'], 300)
+            self.assertEqual(_definition.name, definition.name)
+            files = []
             for index in (2, 1):
-                output.with_name(f'{output.stem}-a4-{index:03d}.png').write_bytes(bytes([index]))
-            import subprocess
-            return subprocess.CompletedProcess(command, 0, '', '')
-        with patch('tm_builder.web_export.subprocess.run', side_effect=run):
+                path = target.with_name(f'{target.stem}-a4-{index:03d}.png')
+                path.write_bytes(bytes([index]))
+                files.append(path)
+            return files
+
+        with patch('tm_builder.web_export.export_table', side_effect=produce):
             body, mime, name = export_download(definition, 'copy.yaml',
-                                               {'name': 'table', 'style': 'formal', 'dpi': 300}, ROOT)
+                                               {'name': 'table', 'style': 'formal', 'dpi': 300})
         self.assertEqual((mime, name), ('application/zip', 'table.zip'))
         with zipfile.ZipFile(io.BytesIO(body)) as archive:
             self.assertEqual(archive.namelist(), ['table-a4-001.png', 'table-a4-002.png'])
 
-    def test_http_real_make_downloads_and_errors(self):
+    def test_http_downloads_and_errors(self):
         server = create_server(ROOT / 'data/examples/machines/copy.yaml', port=0)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()

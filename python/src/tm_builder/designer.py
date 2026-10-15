@@ -47,7 +47,7 @@ def ensure_assets():
         subprocess.run([npm, 'ci', '--no-audit', '--no-fund'], cwd=WEB_PROJECT, check=True)
         subprocess.run([npm, 'run', 'build'], cwd=WEB_PROJECT, check=True)
     except subprocess.CalledProcessError as error:
-        raise RuntimeError('Asset build failed. Run make build from the workspace root.') from error
+        raise RuntimeError('Asset build failed. Run npm run build in the web directory.') from error
 
 
 def library_files(kind):
@@ -271,7 +271,7 @@ class DiagramSource:
                     raise ValueError('Machine changed; try exporting again.')
                 definition = self.definition.model_copy(deep=True)
                 filename = current['path']
-        return export_download(definition, filename, data, PROJECT)
+        return export_download(definition, filename, data)
 
 
 def _render_url():

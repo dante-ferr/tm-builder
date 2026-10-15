@@ -9,8 +9,11 @@ machines in YAML.
 make setup
 ```
 
-Setup installs dependencies and creates `~/Documents/TM Builder/`, seeding its
-`machines/` and `inputs/` folders with examples. Existing files are preserved.
+Setup installs dependencies and creates a `TM Builder` folder inside the
+system Documents folder, seeding its `machines/` and `inputs/` folders with
+examples. On Windows this is the Documents known folder, so a translated name
+such as `Documentos` is used. On Linux it follows `XDG_DOCUMENTS_DIR`. Existing
+files are preserved.
 It creates a private VS Code workspace configuration in the platform's app
 config directory and installs the tm-builder extension when the VS Code `code`
 command is available. Open the configured workspace with:
@@ -19,20 +22,22 @@ command is available. Open the configured workspace with:
 make open-workspace
 ```
 
-The viewer header **Open workspace folder** button runs that same command after
-the current machine file has been written.
+The **Open workspace folder** button in the state graph header opens that workspace
+in the application associated with the workspace file, after the current machine
+file has been written. Set `CODE` to an editor command to choose it explicitly.
 
 Machine files under `machines/` then get syntax, schema, and type diagnostics.
 If the VS Code CLI is not on `PATH`, pass its executable to both commands, for
 example `make setup CODE=/path/to/code` and
-`make open-workspace CODE=/path/to/code`. Set `TM_BUILDER_WORKSPACE` before
-setup to choose another data location.
+`make open-workspace CODE=/path/to/code`. Set `TM_BUILDER_WORKSPACE` to the full
+path of another data folder before setup or before starting the viewer. That
+variable replaces the Documents location entirely.
 
 On Windows, run Make commands in WSL2 or Git Bash with GNU Make, Python 3.14,
-Poetry, and Node.js 20.9+. Formal PNG table export setup is Linux-only.
-
-Formal PNG table export also needs TeX and Poppler system packages; run
-`make setup-formal` on supported Linux distributions.
+Poetry, and Node.js 20.9+. The viewer itself does not need Make. Formal PNG
+export uses LaTeX when LuaLaTeX or XeLaTeX and Poppler are on `PATH`. Without
+those tools, the viewer draws the formal table directly. `make setup-formal`
+installs the LaTeX tools on supported Linux systems.
 
 ## Commands
 

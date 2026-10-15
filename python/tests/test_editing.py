@@ -2,7 +2,7 @@
 from pathlib import Path
 from http.client import HTTPConnection
 import json
-import subprocess
+import os
 import threading
 import tempfile
 import unittest
@@ -14,22 +14,58 @@ import yaml
 from tm_builder.definition import parse_definition
 from tm_builder.designer import DiagramSource, create_server
 from tm_builder.editing import edit_yaml
-from tm_builder.workspace import PROJECT, open_in_editor
+from tm_builder.workspace import documents_directory, open_in_editor, workspace_path
 
 SOURCE = (Path(__file__).parent / 'fixtures/machines/copy.yaml').read_text()
 
 
 class EditingTests(unittest.TestCase):
-    def test_open_in_editor_runs_make_open_workspace(self):
-        with patch('tm_builder.workspace.subprocess.run') as run:
-            run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+    def test_open_in_editor_uses_the_associated_app_or_code(self):
+        workspace = Path('/tmp/TM Builder.code-workspace')
+        with patch('tm_builder.workspace.ensure_workspace'), \
+             patch('tm_builder.workspace.ensure_vscode_workspace', return_value=workspace), \
+             patch('tm_builder.workspace._open_with_default_app') as default, \
+             patch.dict('os.environ', {}, clear=False):
+            os.environ.pop('CODE', None)
             open_in_editor()
-        run.assert_called_once_with(
-            ['make', 'open-workspace'], cwd=PROJECT, capture_output=True, text=True, timeout=60, check=False)
-        with patch('tm_builder.workspace.subprocess.run') as run:
-            run.return_value = subprocess.CompletedProcess(args=[], returncode=2, stderr='code: not found\n')
-            with self.assertRaisesRegex(RuntimeError, 'code: not found'):
+        default.assert_called_once_with(workspace)
+        with patch('tm_builder.workspace.ensure_workspace'), \
+             patch('tm_builder.workspace.ensure_vscode_workspace', return_value=workspace), \
+             patch('tm_builder.workspace._open_with_default_app', side_effect=OSError('no association')), \
+             patch('tm_builder.workspace._editor_command', return_value=None), \
+             patch.dict('os.environ', {}, clear=False):
+            os.environ.pop('CODE', None)
+            with self.assertRaisesRegex(RuntimeError, 'set CODE'):
                 open_in_editor()
+        with patch('tm_builder.workspace.ensure_workspace'), \
+             patch('tm_builder.workspace.ensure_vscode_workspace', return_value=workspace), \
+             patch('tm_builder.workspace._launch') as launch, \
+             patch.dict('os.environ', {'CODE': 'cursor'}):
+            with patch('tm_builder.workspace.shutil.which', return_value='/usr/bin/cursor'):
+                open_in_editor()
+        launch.assert_called_once_with(['/usr/bin/cursor', str(workspace)])
+
+    def test_workspace_override_and_translated_documents_folder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chosen = Path(directory) / "machines"
+            with patch.dict(os.environ, {"TM_BUILDER_WORKSPACE": str(chosen)}):
+                self.assertEqual(workspace_path(), chosen.resolve())
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory)
+            (config / "user-dirs.dirs").write_text(
+                '# comment\nXDG_DESKTOP_DIR="$HOME/Desktop"\nXDG_DOCUMENTS_DIR="$HOME/Documentos"\n',
+                encoding="utf-8")
+            with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(config)}, clear=False), \
+                 patch("tm_builder.workspace.sys.platform", "linux"):
+                os.environ.pop("TM_BUILDER_WORKSPACE", None)
+                os.environ.pop("XDG_DOCUMENTS_DIR", None)
+                self.assertEqual(documents_directory(), Path.home() / "Documentos")
+                self.assertEqual(workspace_path(), (Path.home() / "Documentos" / "TM Builder").resolve())
+        with patch("tm_builder.workspace.sys.platform", "win32"), \
+             patch("tm_builder.workspace._windows_documents", return_value=Path("/Users/me/Documentos")), \
+             patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TM_BUILDER_WORKSPACE", None)
+            self.assertEqual(workspace_path(), Path("/Users/me/Documentos/TM Builder").resolve())
     def test_only_changed_fields_are_replaced(self):
         source = '# My machine\n' + SOURCE + '\n# Keep my notes\n'
         result = edit_yaml(source, {'name': 'Visual copy'})
