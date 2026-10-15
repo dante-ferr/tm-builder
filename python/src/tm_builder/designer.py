@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import webbrowser
 
 from tm_builder.definition import DefinitionError, parse_definition
-from tm_builder.editing import edit_yaml
+from tm_builder.editing import edit_yaml, _dump
 from tm_builder.diagram import machine_diagram
 from tm_builder.inputs import parse_inputs
 from tm_builder.simulation import simulate
@@ -79,6 +79,8 @@ class DiagramSource:
         self.lock = threading.RLock()
         self.cache = None
         self.definition = None
+        self.undo_stack = []
+        self.redo_stack = []
 
     def select(self, path: Path | None = None, *, source=None, filename=None):
         with self.lock:
@@ -87,6 +89,8 @@ class DiagramSource:
             self.buffer = None
             self.cache = None
             self.definition = None
+            self.undo_stack = []
+            self.redo_stack = []
 
     def update_buffer(self, path: str, source: str) -> bool:
         with self.lock:
@@ -121,7 +125,9 @@ class DiagramSource:
         revision = sha256((source + '\0' + mode + '\0' + name).encode()).hexdigest()
         if self.cache and self.cache['revision'] == revision:
             return self.cache
-        result = {'path': name, 'filename': Path(name).stem, 'revision': revision, 'mode': mode}
+        result = {'path': name, 'filename': Path(name).stem, 'revision': revision, 'mode': mode,
+                  'can_undo': bool(self.undo_stack and self.undo_stack[-1][1] == source and mode != 'Unsaved VS Code buffer'),
+                  'can_redo': bool(self.redo_stack and self.redo_stack[-1][0] == source and mode != 'Unsaved VS Code buffer')}
         try:
             definition, warnings = parse_definition(source)
             self.definition = definition
@@ -134,33 +140,94 @@ class DiagramSource:
         self.cache = result
         return result
 
-    def edit(self, data):
-        """Validate and save an edit only against the exact displayed revision."""
-        with self.lock:
-            current = self.snapshot()
-            if not current['valid'] or data.get('revision') != current['revision']:
-                raise ValueError('Machine changed. Review the latest machine and retry your edit.')
-            if current['mode'] == 'Unsaved VS Code buffer':
-                raise ValueError('Save your VS Code changes before editing in the UI.')
-            updated = edit_yaml(current['source'], data.get('changes'))
-            if self.imported:
-                self.imported = (self.imported[0], updated)
-            else:
+    def _editable(self, data):
+        current = self.snapshot()
+        if not current['valid'] or data.get('revision') != current['revision']:
+            raise ValueError('Machine changed. Review the latest machine and retry your edit.')
+        if current['mode'] == 'Unsaved VS Code buffer':
+            raise ValueError('Save your VS Code changes before editing in the UI.')
+        return current
+
+    def _write(self, current, updated):
+        if self.imported:
+            self.imported = (self.imported[0], updated)
+        else:
+            if self.path.read_text() != current['source']:
+                raise ValueError('Machine changed on disk. Review it and retry your edit.')
+            temporary = None
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8',
+                                                 dir=self.path.parent, delete=False) as file:
+                    temporary = Path(file.name)
+                    file.write(updated)
+                temporary.chmod(self.path.stat().st_mode & 0o777)
                 if self.path.read_text() != current['source']:
                     raise ValueError('Machine changed on disk. Review it and retry your edit.')
-                temporary = None
-                try:
-                    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8',
-                                                     dir=self.path.parent, delete=False) as file:
-                        temporary = Path(file.name)
-                        file.write(updated)
-                    temporary.chmod(self.path.stat().st_mode & 0o777)
-                    temporary.replace(self.path)
-                finally:
-                    if temporary and temporary.exists():
-                        temporary.unlink()
-            self.buffer = None
-            self.cache = None
+                temporary.replace(self.path)
+            finally:
+                if temporary and temporary.exists():
+                    temporary.unlink()
+        self.buffer = None
+        self.cache = None
+
+    def edit(self, data):
+        """Validate and autosave, retaining exact YAML for undo and redo."""
+        with self.lock:
+            current = self._editable(data)
+            updated = edit_yaml(current['source'], data.get('changes'))
+            if updated != current['source']:
+                self._write(current, updated)
+                self.undo_stack.append((current['source'], updated))
+                self.undo_stack = self.undo_stack[-50:]
+                self.redo_stack.clear()
+            return self.snapshot()
+
+    def history(self, data):
+        with self.lock:
+            current = self._editable(data)
+            direction = data.get('direction')
+            if direction not in ('undo', 'redo'):
+                raise ValueError('Choose undo or redo.')
+            undo = direction == 'undo'
+            stack = self.undo_stack if undo else self.redo_stack
+            destination = self.redo_stack if undo else self.undo_stack
+            if not stack:
+                raise ValueError(f'Nothing to {direction}.')
+            before, after = stack[-1]
+            if current['source'] != (after if undo else before):
+                raise ValueError('Machine changed outside the UI. Undo history cannot overwrite those changes.')
+            self._write(current, before if undo else after)
+            destination.append(stack.pop())
+            return self.snapshot()
+
+    @staticmethod
+    def _new_file(workspace, filename, text):
+        if (not isinstance(filename, str) or not filename.strip()
+                or '/' in filename or '\\' in filename or '\0' in filename
+                or Path(filename).suffix.lower() not in ('.yaml', '.yml')):
+            raise ValueError('Choose a .yaml or .yml filename without directories.')
+        folder = (workspace / 'machines').resolve()
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / filename
+        # Exclusive creation also rejects symlinks and never overwrites a machine.
+        try:
+            with target.open('x', encoding='utf-8') as file:
+                file.write(text)
+        except FileExistsError as error:
+            raise ValueError('That filename already exists. Choose another filename.') from error
+        return target
+
+    def create(self, data, workspace):
+        name = data.get('name')
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError('Enter a machine name.')
+        text = _dump(dict(name=name.strip(), model='deterministic', tapes=1,
+                          blank='_', input_alphabet=['0', '1'], tape_alphabet=['0', '1', '_'],
+                          states=['q0'], start='q0', accept=[], reject=[], transitions=[]))
+        parse_definition(text)
+        with self.lock:
+            target = self._new_file(workspace, data.get('filename'), text)
+            self.select(target)
             return self.snapshot()
 
     def simulation(self, data):
@@ -302,7 +369,7 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
         def do_POST(self):
             if not self.local_request():
                 return
-            if self.path not in ('/api/buffer', '/api/simulate', '/api/machine', '/api/export', '/api/edit'):
+            if self.path not in ('/api/buffer', '/api/simulate', '/api/machine', '/api/export', '/api/edit', '/api/history', '/api/create'):
                 self.respond({'error': 'Not found'}, 404)
                 return
             try:
@@ -312,6 +379,12 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
                 data = json.loads(self.rfile.read(size))
                 if not isinstance(data, dict):
                     raise ValueError('Expected a JSON object')
+                if self.path == '/api/history':
+                    self.respond(source.history(data))
+                    return
+                if self.path == '/api/create':
+                    self.respond(source.create(data, workspace))
+                    return
                 if self.path == '/api/edit':
                     self.respond(source.edit(data))
                     return

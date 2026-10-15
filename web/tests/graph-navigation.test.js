@@ -182,3 +182,23 @@ test('playback stop and diagram replacement discard the followed state', t => {
   navigation.follow(state(10, -80));
   assert.deepEqual(view(), replaced);
 });
+
+
+test('typing and arrow keys inside an inline graph editor do not move the camera', t => {
+  const {graph, view} = fixture(t);
+  const input = new EventTarget();
+  input.closest = selector => selector.includes('input') ? input : null;
+  const before = view();
+  const event = new Event('keydown', {cancelable: true});
+  Object.defineProperty(event, 'target', {value: input});
+  Object.assign(event, {key: 'ArrowLeft'});
+  graph.dispatchEvent(event);
+  assert.deepEqual(view(), before);
+  assert.equal(event.defaultPrevented, false);
+});
+
+test('revealing an inline editor centers its graph coordinates in the viewport', t => {
+  const {navigation, view} = fixture(t);
+  navigation.reveal(120, 60, 380, 230);
+  assert.deepEqual(view(), {x: 280, y: 140, scale: 1});
+});

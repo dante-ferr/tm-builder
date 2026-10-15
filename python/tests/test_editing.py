@@ -125,8 +125,94 @@ class EditingTests(unittest.TestCase):
                 invalid = {'revision': updated['revision'], 'changes': {'start': 'unknown'}}
                 self.assertEqual(request('/api/edit', invalid)[0], 400)
                 self.assertEqual(request('/api/diagram')[1]['revision'], updated['revision'])
+                status, undone = request('/api/history', {'revision': updated['revision'], 'direction': 'undo'})
+                self.assertEqual(status, 200)
+                self.assertEqual(path.read_text(), SOURCE)
+                self.assertTrue(undone['can_redo'])
+                self.assertEqual(request('/api/history', {'revision': updated['revision'], 'direction': 'redo'})[0], 400)
+                status, redone = request('/api/history', {'revision': undone['revision'], 'direction': 'redo'})
+                self.assertEqual(status, 200)
+                self.assertEqual(redone['source'], updated['source'])
+                self.assertEqual(request('/api/create', {'name': 'New', 'filename': '../escape.yaml'})[0], 400)
+                status, created = request('/api/create', {'name': 'New', 'filename': 'new.yaml'})
+                self.assertEqual(status, 200)
+                self.assertEqual(created['name'], 'New')
+                self.assertFalse(created['can_undo'])
+                self.assertTrue((Path(directory) / 'machines/new.yaml').is_file())
+                self.assertEqual(request('/api/create', {'name': 'Overwrite', 'filename': 'new.yaml'})[0], 400)
             finally:
                 connection.close()
                 server.shutdown()
                 server.server_close()
                 thread.join()
+
+    def test_undo_and_redo_restore_exact_yaml_and_save_to_disk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'machine.yaml'
+            path.write_text(SOURCE)
+            source = DiagramSource(path)
+            initial = source.snapshot()
+            self.assertFalse(initial['can_undo'])
+            edited = source.edit({'revision': initial['revision'], 'changes': {'name': 'Changed'}})
+            self.assertTrue(edited['can_undo'])
+            self.assertFalse(edited['can_redo'])
+            undone = source.history({'revision': edited['revision'], 'direction': 'undo'})
+            self.assertEqual(path.read_text(), SOURCE)
+            self.assertEqual(undone['revision'], initial['revision'])
+            self.assertTrue(undone['can_redo'])
+            redone = source.history({'revision': undone['revision'], 'direction': 'redo'})
+            self.assertEqual(path.read_text(), edited['source'])
+            self.assertEqual(redone['revision'], edited['revision'])
+
+    def test_history_does_not_overwrite_external_edits_or_cross_selection(self):
+        source = DiagramSource()
+        source.select(source=SOURCE, filename='import.yaml')
+        edited = source.edit({'revision': source.snapshot()['revision'], 'changes': {'name': 'First'}})
+        source.history({'revision': edited['revision'], 'direction': 'undo'})
+        source.edit({'revision': source.snapshot()['revision'], 'changes': {'name': 'New branch'}})
+        self.assertFalse(source.snapshot()['can_redo'])
+        source.select(source=SOURCE, filename='another.yaml')
+        self.assertFalse(source.snapshot()['can_undo'])
+        with self.assertRaisesRegex(ValueError, 'Nothing to undo'):
+            source.history({'revision': source.snapshot()['revision'], 'direction': 'undo'})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'machine.yaml'
+            path.write_text(SOURCE)
+            source.select(path)
+            source.edit({'revision': source.snapshot()['revision'], 'changes': {'name': 'UI change'}})
+            external = SOURCE.replace('Two-tape copy', 'External change')
+            path.write_text(external)
+            current = source.snapshot()
+            self.assertFalse(current['can_undo'])
+            with self.assertRaisesRegex(ValueError, 'outside the UI'):
+                source.history({'revision': current['revision'], 'direction': 'undo'})
+            self.assertEqual(path.read_text(), external)
+
+    def test_create_machine_validates_filename_and_never_overwrites(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = DiagramSource()
+            created = source.create({'name': 'My machine', 'filename': 'mine.yaml'}, root)
+            path = root / 'machines/mine.yaml'
+            definition, _ = parse_definition(path.read_text())
+            self.assertEqual(definition.states, ['q0'])
+            self.assertEqual(definition.start, 'q0')
+            self.assertEqual(created['path'], str(path))
+            self.assertFalse(created['can_undo'])
+            for filename in ('mine.yaml', '../escape.yaml', '/tmp/escape.yaml', 'bad.txt', 'bad\\escape.yaml'):
+                with self.subTest(filename=filename), self.assertRaises(ValueError):
+                    source.create({'name': 'Overwrite', 'filename': filename}, root)
+            self.assertEqual(parse_definition(path.read_text())[0].name, 'My machine')
+
+    def test_alphabet_symbols_are_serialized_as_strings(self):
+        # UI sends lists of strings; numeric and YAML-significant symbols stay strings.
+        source = DiagramSource()
+        text = (Path(__file__).parents[2] / 'data/examples/machines/halt.yaml').read_text()
+        source.select(source=text, filename='halt.yaml')
+        blank = source.snapshot()['definition']['blank']
+        symbols = ['0', '1', "'", '"', ':', '#', ' ', '😀']
+        symbols = [symbol for symbol in symbols if symbol != blank]
+        result = source.edit({'revision': source.snapshot()['revision'], 'changes': {
+            'input_alphabet': symbols, 'tape_alphabet': [*symbols, blank]}})
+        self.assertEqual(yaml.safe_load(result['source'])['input_alphabet'], symbols)
+        self.assertEqual(parse_definition(result['source'])[0].input_alphabet, symbols)

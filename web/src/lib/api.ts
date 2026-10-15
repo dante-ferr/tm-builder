@@ -20,6 +20,8 @@ async function json<T>(path: string, signal: AbortSignal, data?: unknown): Promi
 export const api = {
   limits: (signal: AbortSignal) => json<ExecutionLimits>('limits', signal),
   diagram: (signal: AbortSignal) => json<Diagram>('diagram', signal),
+  history: (revision: string, direction: 'undo' | 'redo', signal: AbortSignal) => json<Diagram>('history', signal, {revision, direction}),
+  create: (name: string, filename: string, signal: AbortSignal) => json<Diagram>('create', signal, {name, filename}),
   edit: (revision: string, changes: Partial<MachineDefinition>, signal: AbortSignal) => json<Diagram>('edit', signal, {revision, changes}),
   library: (signal: AbortSignal) => json<Library>('library', signal),
   selectMachine: (source: MachineSource, signal: AbortSignal) => json<Diagram>('machine', signal, source),

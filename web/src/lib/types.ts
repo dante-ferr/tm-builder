@@ -11,6 +11,8 @@ export interface MachineDefinition {
 }
 export interface Machine extends Snapshot {
   source: string;
+  can_undo: boolean;
+  can_redo: boolean;
   definition: MachineDefinition;
   valid: true;
   name: string;

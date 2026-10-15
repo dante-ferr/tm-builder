@@ -53,7 +53,7 @@ export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, on
   }
   const navigationEvents = {signal};
   graph.addEventListener('wheel', event => {
-    if (!svg || !event.deltaY) return;
+    if (!svg || !event.deltaY || (event.target as Element)?.closest?.('[data-graph-editor]')) return;
     event.preventDefault();
     const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? graph.clientHeight : 1);
     zoom(Math.exp(-Math.max(-1000, Math.min(1000, delta)) / 500), event.clientX, event.clientY);
@@ -89,7 +89,7 @@ export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, on
     if (event.button === 1) event.preventDefault();
   }, navigationEvents);
   graph.addEventListener('keydown', event => {
-    if (!svg || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!svg || event.ctrlKey || event.metaKey || event.altKey || (event.target as Element)?.closest?.('input, select, textarea, [contenteditable], [data-graph-editor]')) return;
     const directions: Record<string, [number, number]> = {
       ArrowLeft: [40, 0], a: [40, 0], A: [40, 0],
       ArrowRight: [-40, 0], d: [-40, 0], D: [-40, 0],
@@ -108,6 +108,15 @@ export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, on
     fit() { stopFollowing(true); fit(); },
     resize() { if (followedNode) centerFollowedNode(); else fit(); },
     zoom,
+    reveal(x: number, y: number, width: number, height: number) {
+      if (!svg) return;
+      stopFollowing(true);
+      scale = Math.min(1, (graph.clientWidth - 32) / width, (graph.clientHeight - 80) / height);
+      scale = Math.max(.2, scale);
+      offsetX = graph.clientWidth / 2 - (x - svg.viewBox.baseVal.x) * scale;
+      offsetY = graph.clientHeight / 2 - (y - svg.viewBox.baseVal.y) * scale;
+      updateView();
+    },
     startFollowing(node: SVGGraphicsElement | null) {
       if (!svg || !node) return;
       stopPan();

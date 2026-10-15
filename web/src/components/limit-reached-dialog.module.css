@@ -1,0 +1,5 @@
+.dialog { max-width: 470px; }
+.dialog p { font-size: 13px; line-height: 1.7; color: var(--muted); }
+.dialog .preference { display: flex; flex-direction: row; align-items: center; gap: 9px; margin: 22px 0; font-size: 12px; }
+.preference input { margin: 0; }
+.actions { display: flex; justify-content: flex-end; }

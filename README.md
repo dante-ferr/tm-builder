@@ -55,13 +55,21 @@ Git repository for your group. Initialize Git there and add a shared remote, or
 point `TM_BUILDER_WORKSPACE` at an existing clone. The viewer starts with a
 machine picker; CLI commands that need a machine default to `copy.yaml`.
 
-Edit a loaded machine directly in the web UI. Use **+ State** to add states,
-select a state to rename it or change its role, and use **Transition tool** to
-select a source and destination before entering read/write/move for each tape.
-Select an edge to edit or delete its individual rules. **Machine settings** edits
-the model, alphabets, blank, and tape count. Applying an edit validates and saves
-the workspace YAML and refreshes the graph. Imported files stay in memory; use
-**Download YAML** to keep their changes. Save unsaved VS Code buffers before UI edits.
+Edit a loaded machine directly in the graph. The icon tools in its header let you
+select and edit a state or connection, add a state by clicking empty canvas, or
+create a transition by selecting its source and destination. Edit state properties
+and per-tape read/write/move fields in place; Enter or the checkmark saves to YAML.
+Use the settings icon for model, alphabets, blank, and tape count. Imported files
+stay in memory; download YAML to keep their changes. Save unsaved VS Code buffers
+before UI edits. Playback and debugger controls expand from the bottom bar when
+you load a trace, and can be collapsed to give the graph more room.
+
+Use **New machine** (+) in the library to create a workspace YAML file with one
+start state. Alphabet settings use editable symbol lists: add or remove one
+character per entry; the app writes valid YAML automatically. **Ctrl+Z** undoes
+the last applied graph/settings change and **Ctrl+Shift+Z** redoes it (Cmd on
+macOS). Both autosave the result. Typing in a text field keeps normal text undo.
+History covers the current machine's latest 50 edits during the server session.
 
 ## Examples
 
@@ -78,10 +86,9 @@ Bundled examples live in `data/examples/` and are copied to a new workspace.
 | [binary_counter](data/examples/machines/binary_counter.yaml) | Exponential binary counting and long traces | [8,190 steps](data/examples/inputs/binary_counter.yaml), [1,000,000 steps](data/examples/inputs/binary_counter_million.yaml) |
 
 Selecting the binary counter loads the million-step input. Allow at least 1,000,000
-steps and choose **As quick as possible** to skip playback delays. Execution runs
-on a background request thread; browser workers load and index long traces and
-handle instant playback, including breakpoints. Compact rule histories preserve
-every step for free backward and forward timeline seeking.
+steps and press **Load Trace**. Execution runs on a background request thread;
+browser workers load and index long traces. Set playback speed with the slider or
+numeric field, then seek freely through the recorded timeline.
 
 The UI benchmarks this computer when the server starts being used and estimates a
 default step budget of roughly five seconds. The step limit is editable, up to

@@ -1,19 +1,27 @@
 'use client';
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {createPortal} from 'react-dom';
 import {mountGraphNavigation} from '../graph-navigation';
-import {downloadBlob, errorMessage} from '../lib/api';
+import {errorMessage} from '../lib/api';
 import type {Machine} from '../lib/types';
 import type {PlaybackController} from '../hooks/use-playback';
 import {Icon} from './icon';
+import {ExportDialog} from './export-dialog';
 
 type Navigation = ReturnType<typeof mountGraphNavigation>;
-export function StateGraph({machine, playback: p, onState, onEdge, selectedState}: {
+export interface GraphAnchor {state?: string; from?: string; to?: string; point?: {x: number; y: number}}
+export interface GraphEditor {key: string; anchor: GraphAnchor; content: ReactNode; height: number}
+export function StateGraph({machine, playback: p, onState, onEdge, selectedState, tools, help, inlineEditor, settings, addingState, onCanvas}: {
   machine: Machine | null; playback: PlaybackController;
   onState?: (state: string) => void; onEdge?: (from: string, to: string) => void; selectedState?: string | null;
+  tools?: ReactNode; help?: ReactNode; inlineEditor?: GraphEditor | null; settings?: ReactNode;
+  addingState?: boolean; onCanvas?: (point: {x: number; y: number}) => void;
 }) {
   const graph = useRef<HTMLDivElement>(null);
   const navigation = useRef<Navigation | null>(null);
+  const activeEditor = useRef<{x: number; y: number; height: number} | null>(null);
   const [svg, setSvg] = useState<SVGSVGElement | null>(null);
+  const [editorPosition, setEditorPosition] = useState<{x: number; y: number} | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [renderError, setRenderError] = useState('');
   const [rendering, setRendering] = useState(false);
@@ -24,7 +32,7 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
     const lifetime = new AbortController();
     const nav = mountGraphNavigation(target, lifetime.signal, () => stopFollow.current());
     navigation.current = nav;
-    const observer = new ResizeObserver(() => nav.resize()); observer.observe(target);
+    const observer = new ResizeObserver(() => {const editor = activeEditor.current; if (editor) nav.reveal(editor.x, editor.y, 380, editor.height); else nav.resize();}); observer.observe(target);
     return () => {observer.disconnect(); nav.stopPan(); nav.stopFollowing(); lifetime.abort(); navigation.current = null;};
   }, []);
   useEffect(() => {
@@ -35,6 +43,7 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
     import('@viz-js/viz').then(module => module.instance()).then(viz => {
       if (disposed) return;
       const diagram = viz.renderSVGElement(machine.dot);
+      diagram.setAttribute('role', 'group'); diagram.setAttribute('aria-label', 'Machine state graph');
       graph.current?.replaceChildren(diagram); navigation.current?.setDiagram(diagram); setSvg(diagram);
     }).catch(error => {if (!disposed) setRenderError(errorMessage(error));})
       .finally(() => {if (!disposed) setRendering(false);});
@@ -81,19 +90,56 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
       svg.querySelectorAll('.editable').forEach(node => {node.classList.remove('editable'); node.removeAttribute('tabindex'); node.removeAttribute('role'); node.removeAttribute('aria-label');});
     };
   }, [svg, machine, onState, onEdge, selectedState]);
-  function download() {
-    if (!svg || !machine) return;
-    const copy = svg.cloneNode(true) as SVGSVGElement;
-    copy.removeAttribute('style');
-    copy.querySelectorAll('.active-state, .active-rule, .edit-selected, .editable').forEach(node => {node.classList.remove('active-state', 'active-rule', 'edit-selected', 'editable'); node.removeAttribute('tabindex'); node.removeAttribute('role'); node.removeAttribute('aria-label');});
-    downloadBlob(new Blob([new XMLSerializer().serializeToString(copy)], {type: 'image/svg+xml'}), `${machine.filename}.svg`);
-  }
+  useEffect(() => {
+    setEditorPosition(null);
+    if (!svg || !machine || !inlineEditor) return;
+    const {anchor, height} = inlineEditor;
+    const state = anchor.state ? svg.querySelector<SVGGraphicsElement>(`#state_${machine.states.indexOf(anchor.state)}`) : null;
+    const edge = anchor.from ? svg.querySelector<SVGGraphicsElement>(`#edge_${machine.states.indexOf(anchor.from)}_${machine.states.indexOf(anchor.to!)}`) : null;
+    const target = state || edge;
+    function center(node: SVGGraphicsElement) {
+      const bounds = node.getBBox(), point = svg!.createSVGPoint();
+      point.x = bounds.x + bounds.width / 2; point.y = bounds.y + bounds.height / 2;
+      return point.matrixTransform(node.getCTM()!).matrixTransform(svg!.getCTM()!.inverse());
+    }
+    let point = anchor.point;
+    if (target) {
+      const text = edge?.querySelector<SVGGraphicsElement>('text');
+      point = center(text || target);
+    } else if (anchor.from && anchor.to) {
+      const a = svg.querySelector<SVGGraphicsElement>(`#state_${machine.states.indexOf(anchor.from)}`);
+      const b = svg.querySelector<SVGGraphicsElement>(`#state_${machine.states.indexOf(anchor.to)}`);
+      if (a && b) {const first = center(a), second = center(b); point = {x: (first.x + second.x) / 2, y: (first.y + second.y) / 2};}
+    }
+    point ||= {x: svg.viewBox.baseVal.width / 2, y: svg.viewBox.baseVal.height / 2};
+    // Expand a connection label upward so its states and arrow remain visible.
+    if (anchor.from) point = {x: point.x, y: point.y - height / 2 - 12};
+    setEditorPosition(point);
+    target?.classList.add(state ? 'editing-node' : 'editing-edge');
+    activeEditor.current = {...point, height};
+    navigation.current?.reveal(point.x, point.y, 380, height);
+    return () => {activeEditor.current = null; target?.classList.remove('editing-node', 'editing-edge');};
+  }, [svg, machine, inlineEditor?.key]);
   return <section className={`graph-panel panel ${expanded ? 'expanded' : ''}`} id="graph-panel" aria-label="State graph">
-    <div className="panel-heading"><div className="panel-title"><Icon name="graph" size={17} /><h2>State graph</h2><span className="subtle">{machine ? `${machine.states.length} states · ${machine.tapes} ${machine.tapes === 1 ? 'tape' : 'tapes'}` : 'Visualization'}</span></div><div className="graph-actions"><span className="live-pill"><span />Live preview</span><button className="icon-button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls="graph-panel" aria-label={expanded ? 'Shrink state graph' : 'Expand state graph'} title={expanded ? 'Shrink state graph (Esc)' : 'Expand state graph'}><Icon name="expand" size={16} /></button></div></div>
-    <div className="graph-stage"><div id="graph" ref={graph} className="graph-canvas" tabIndex={0} aria-label="Rendered machine diagram" aria-describedby="graph-help" />
+    <div className="panel-heading"><div className="panel-title"><Icon name="graph" size={17} /><h2>State graph</h2><span className="subtle">{machine ? `${machine.states.length} states · ${machine.tapes} ${machine.tapes === 1 ? 'tape' : 'tapes'}` : 'Visualization'}</span></div><div className="graph-actions">{tools}<div className="graph-view-tools" role="toolbar" aria-label="Graph view tools"><button className="icon-button" onClick={() => navigation.current?.zoom(.8)} disabled={!svg} aria-label="Zoom out" title="Zoom out"><Icon name="minus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.zoom(1.25)} disabled={!svg} aria-label="Zoom in" title="Zoom in"><Icon name="plus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.fit()} disabled={!svg} aria-label="Fit view" title="Fit view"><Icon name="fit" size={16} /></button></div><ExportDialog machine={machine} svg={svg} /><button className="icon-button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls="graph-panel" aria-label={expanded ? 'Shrink state graph' : 'Expand state graph'} title={expanded ? 'Shrink state graph (Esc)' : 'Expand state graph'}><Icon name="expand" size={16} /></button></div></div>
+    {settings}
+    <div className="graph-stage"><div id="graph" ref={graph} className={`graph-canvas ${addingState ? 'adding-state' : ''}`} onClick={event => {
+      if (!addingState || !svg || (event.target as Element).closest('.node, .edge, [data-graph-editor]')) return;
+      const point = svg.createSVGPoint(); point.x = event.clientX; point.y = event.clientY;
+      const local = point.matrixTransform(svg.getScreenCTM()!.inverse()); onCanvas?.({x: local.x, y: local.y});
+    }} onKeyDown={event => {
+      if (!addingState || !svg || event.key !== 'Enter' || event.target !== event.currentTarget) return;
+      event.preventDefault();
+      const bounds = event.currentTarget.getBoundingClientRect(), point = svg.createSVGPoint();
+      point.x = bounds.left + bounds.width / 2; point.y = bounds.top + bounds.height / 2;
+      const local = point.matrixTransform(svg.getScreenCTM()!.inverse()); onCanvas?.({x: local.x, y: local.y});
+    }} tabIndex={0} aria-label="Rendered machine diagram" aria-describedby="graph-help" />
+      {svg && inlineEditor && editorPosition && createPortal(<foreignObject data-inline-editor="true" x={editorPosition.x - 190} y={editorPosition.y - inlineEditor.height / 2} width={380} height={inlineEditor.height}>
+        <div data-graph-editor="true" className="graph-inline-editor" onKeyDown={event => {if (event.key !== 'Escape' && !event.ctrlKey && !event.metaKey) event.stopPropagation();}} onClick={event => event.stopPropagation()}>{inlineEditor.content}</div>
+      </foreignObject>, svg)}
       {!svg && <div className="graph-empty"><span className="empty-graph"><i>q₀</i><span>→</span><i>q₁</i><span>→</span><i>q₂</i></span><h3>{renderError ? 'Unable to render diagram' : rendering ? 'Drawing your machine…' : 'Everything starts with a state.'}</h3><p>{renderError || (rendering ? 'Arranging states and transitions.' : 'Choose a machine from your library or import a YAML file to explore its transitions.')}</p>{!machine && <span className="empty-hint"><Icon name="library" size={14} />Your machine library is on the left</span>}</div>}
-      <div className="graph-toolbar" aria-label="Graph tools"><button className="icon-button" onClick={() => navigation.current?.zoom(.8)} disabled={!svg} aria-label="Zoom out"><Icon name="minus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.zoom(1.25)} disabled={!svg} aria-label="Zoom in"><Icon name="plus" size={16} /></button><span className="toolbar-divider" /><button onClick={() => navigation.current?.fit()} disabled={!svg}>Fit view</button><span className="toolbar-divider" /><button onClick={download} disabled={!svg}><Icon name="download" size={14} />SVG</button></div>
+
     </div>
-    <div className="graph-footer"><span id="graph-help">Scroll to zoom <span>·</span> Middle drag to pan <span>·</span> Focus graph for WASD / arrows</span><span className="graph-legend"><i />State <i />Accept state</span></div>
+    <div className="graph-footer"><span id="graph-help">{help || <>Scroll to zoom <span>·</span> Middle drag to pan <span>·</span> Focus graph for WASD / arrows</>}</span><span className="graph-legend"><i />State <i />Accept state</span></div>
   </section>;
 }

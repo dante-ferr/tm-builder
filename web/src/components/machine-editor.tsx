@@ -1,35 +1,34 @@
 'use client';
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useState} from 'react';
 import type {WorkspaceController} from '../hooks/use-workspace';
 import type {PlaybackController} from '../hooks/use-playback';
 import type {Machine, MachineDefinition, Rule} from '../lib/types';
 import {downloadBlob, errorMessage} from '../lib/api';
-import {StateGraph} from './state-graph';
+import {StateGraph, type GraphAnchor} from './state-graph';
+import {Icon} from './icon';
+import {SymbolList} from './symbol-list';
+import {alphabetIssue} from '../lib/alphabet';
 
-type Edit = {kind: 'state'; original?: string; name: string; start: boolean; role: string}
+type Edit = {kind: 'state'; original?: string; name: string; start: boolean; role: string; point?: {x: number; y: number}}
   | {kind: 'rule'; index?: number; rule: Rule}
-  | {kind: 'settings'; name: string; model: MachineDefinition['model']; tapes: number; blank: string; input: string; alphabet: string}
-  | {kind: 'rules'; from: string; to: string};
+  | {kind: 'settings'; name: string; model: MachineDefinition['model']; tapes: number; blank: string; input: string[]; alphabet: string[]};
 
-export function MachineEditor({workspace: w, playback}: {workspace: WorkspaceController; playback: PlaybackController}) {
+export function MachineEditor({workspace: w, playback, onBeginEdit}: {workspace: WorkspaceController; playback: PlaybackController; onBeginEdit?: () => void}) {
   const machine = w.selecting ? null : w.machine;
-  const [tool, setTool] = useState<'inspect' | 'transition'>('inspect');
+  const [tool, setTool] = useState<'inspect' | 'state' | 'transition'>('inspect');
   const [source, setSource] = useState<string | null>(null);
   const [edit, setEdit] = useState<Edit | null>(null);
   const [base, setBase] = useState<Machine | null>(null);
   const [error, setError] = useState('');
-  const dialog = useRef<HTMLDialogElement>(null);
   const disabled = !machine || !w.connected || w.selecting || w.saving || machine.mode === 'Unsaved VS Code buffer';
   useEffect(() => {setSource(null);}, [machine?.revision]);
-  useEffect(() => {if (edit) dialog.current?.showModal(); else dialog.current?.close();}, [edit !== null]);
   useEffect(() => {
-    if (tool !== 'transition') return;
-    const cancel = (event: KeyboardEvent) => {if (event.key === 'Escape' && !edit) {setSource(null); setTool('inspect');}};
+    const cancel = (event: KeyboardEvent) => {if (event.key === 'Escape' && !w.saving) {setEdit(null); setError(''); setSource(null); setTool('inspect');}};
     window.addEventListener('keydown', cancel);
     return () => window.removeEventListener('keydown', cancel);
-  }, [tool, edit]);
-  function open(value: Edit, snapshot = machine) {setBase(snapshot); setEdit(value); setError(''); playback.pause();}
-  function stateForm(state?: string): Edit {
+  }, [w.saving]);
+  function open(value: Edit, snapshot = machine) {onBeginEdit?.(); setBase(snapshot); setEdit(value); setError(''); playback.pause();}
+  function stateForm(state?: string): Extract<Edit, {kind: 'state'}> {
     const d = machine!.definition;
     return {kind: 'state', original: state, name: state || '', start: state === d.start,
       role: state && d.accept.includes(state) ? 'accept' : state && d.reject.includes(state) ? 'reject' : 'normal'};
@@ -42,12 +41,12 @@ export function MachineEditor({workspace: w, playback}: {workspace: WorkspaceCon
   function pickState(state: string) {
     if (disabled) return;
     playback.pause(); playback.setFollow(false);
-    if (tool === 'inspect') {open(stateForm(state)); return;}
+    if (tool !== 'transition') {open(stateForm(state)); return;}
     if (!source) {
       if (machine!.definition.accept.includes(state) || machine!.definition.reject.includes(state)) {
         setError('Halting states cannot have outgoing transitions. Choose another source state.'); return;
       }
-      setError(''); setSource(state);
+      close(); setSource(state);
     } else {open(ruleForm(source, state)); setSource(null);}
   }
   async function save(changes: Partial<MachineDefinition>) {
@@ -79,8 +78,9 @@ export function MachineEditor({workspace: w, playback}: {workspace: WorkspaceCon
       void save({transitions});
     } else if (edit.kind === 'settings') {
       try {
-        const input: unknown = JSON.parse(edit.input), alphabet: unknown = JSON.parse(edit.alphabet);
-        if (!Array.isArray(input) || !Array.isArray(alphabet)) throw new Error('Alphabets must be JSON arrays of symbols.');
+        const input = edit.input, alphabet = edit.alphabet;
+        const issue = alphabetIssue(input, 'Input alphabet') || alphabetIssue(alphabet, 'Tape alphabet');
+        if (issue) throw new Error(issue);
         void save({name: edit.name, model: edit.model, tapes: edit.tapes, blank: edit.blank,
           input_alphabet: input, tape_alphabet: alphabet,
           transitions: d.transitions.map(r => ({...r, tapes: Array.from({length: edit.tapes}, (_, i) => r.tapes[i] || [edit.blank, edit.blank, 'S'])})),
@@ -92,65 +92,74 @@ export function MachineEditor({workspace: w, playback}: {workspace: WorkspaceCon
     if (edit?.kind !== 'state' || !edit.original || !base) return;
     const state = edit.original, d = base.definition;
     if (state === d.start) {setError('Choose a different start state before deleting this state.'); return;}
-    if (!window.confirm(`Delete state “${state}” and all its incoming and outgoing transitions?`)) return;
     void save({states: d.states.filter(s => s !== state), accept: d.accept.filter(s => s !== state),
       reject: d.reject.filter(s => s !== state), transitions: d.transitions.filter(r => r.from !== state && r.to !== state)});
   }
-  const ruleRows = (snapshot: Machine, from?: string, to?: string) => snapshot.definition.transitions.map((r, i) => ({r, i}))
-    .filter(({r}) => !from || r.from === from && r.to === to)
-    .map(({r, i}) => <button key={i} type="button" className="rule-row" disabled={disabled || snapshot.revision !== machine?.revision} onClick={() => open({kind: 'rule', index: i, rule: structuredClone(r)}, snapshot)}>
-      <strong>{r.from} → {r.to}</strong><code>{r.tapes.map(t => `${t[0]} → ${t[1]}, ${t[2]}`).join(' | ')}</code><span>Edit</span></button>);
-  return <>
-    <section className="machine-tools panel" aria-label="Machine editing tools">
-      <div className="edit-tools"><button aria-pressed={tool === 'inspect'} onClick={() => {setTool('inspect'); setSource(null);}}>Select / edit</button>
-        <button disabled={disabled} aria-pressed={tool === 'transition'} onClick={() => {setTool('transition'); setSource(null); playback.pause(); playback.setFollow(false);}}>Transition tool</button>
-        <button disabled={disabled} onClick={() => open(stateForm())}>+ State</button>
-        <button disabled={disabled} onClick={() => open(ruleForm())}>+ Transition</button>
-        <button disabled={disabled} onClick={() => {const d = machine!.definition; open({kind: 'settings', name: d.name, model: d.model, tapes: d.tapes, blank: d.blank, input: JSON.stringify(d.input_alphabet), alphabet: JSON.stringify(d.tape_alphabet)});}}>Machine settings</button>
-        <button disabled={!machine} onClick={() => downloadBlob(new Blob([machine!.source], {type: 'text/yaml'}), machine!.path.split('/').pop() || 'machine.yaml')}>Download YAML</button>
-      </div>
-      <p role="status">{w.saving ? 'Saving…' : disabled ? machine?.mode === 'Unsaved VS Code buffer' ? 'Save your VS Code buffer to enable UI editing.' : 'Select a machine to edit.' : tool === 'transition' ? source ? `From ${source}: select the destination state. Esc cancels.` : 'Select the source state, then the destination. Select the same state twice for a loop.' : 'Select a state or transition to edit it.'} {machine && (machine.mode === 'Imported file' ? 'Imported edits stay in this session. Download YAML to keep them.' : 'Changes save to the workspace YAML when you apply an edit.')}</p>
-      {!edit && error && <div className="error-banner" role="alert">{error}</div>}
-    </section>
-    <div className="editor-graph" onKeyDown={event => {if (event.key === 'Escape') {setSource(null); setTool('inspect');}}}>
-      <StateGraph machine={machine} playback={playback} onState={disabled ? undefined : pickState}
-        onEdge={disabled || tool !== 'inspect' ? undefined : (from, to) => open({kind: 'rules', from, to})} selectedState={source} />
-    </div>
-    {machine && <details className="panel transition-list"><summary>States and transitions · {machine.definition.transitions.length} rules</summary>
-      <div className="state-list">{machine.states.map(s => <button key={s} disabled={disabled} onClick={() => pickState(s)}>{s}{s === source ? ' · source' : ''}</button>)}</div>
-      {ruleRows(machine)}{!machine.definition.transitions.length && <p className="help">No transitions yet. Use the transition tool to link two states.</p>}
-    </details>}
-    <dialog aria-labelledby="machine-edit-title" className="export-dialog machine-edit-dialog" ref={dialog} onCancel={event => {event.preventDefault(); if (!w.saving) {setEdit(null); setError('');}}} onClose={() => {setEdit(null); setError('');}}>
-      {edit && base && <form onSubmit={event => {event.preventDefault(); submit();}}>
-        <div className="export-heading"><h2 id="machine-edit-title">{edit.kind === 'state' ? edit.original ? 'Edit state' : 'Add state' : edit.kind === 'rule' ? edit.index === undefined ? 'Add transition' : 'Edit transition' : edit.kind === 'rules' ? `${edit.from} → ${edit.to}` : 'Machine settings'}</h2><button type="button" disabled={w.saving} aria-label="Close editor" onClick={() => {setEdit(null); setError('');}}>×</button></div>
-        <fieldset disabled={w.saving || base.revision !== machine?.revision}>
-          {edit.kind === 'state' && <>
-            <label>State name<input required autoFocus value={edit.name} onChange={e => setEdit({...edit, name: e.target.value})} /></label>
-            <label>State type<select value={edit.role} onChange={e => setEdit({...edit, role: e.target.value})}><option value="normal">Normal</option><option value="accept">Accept (halt)</option><option value="reject">Reject (halt)</option></select></label>
-            <label className="inline-check"><input type="checkbox" checked={edit.start} disabled={edit.original === base.definition.start} onChange={e => setEdit({...edit, start: e.target.checked})} />Start state</label>
-            {edit.original && <p className="help">Renaming updates all references. Deleting also removes every connected transition.</p>}
-          </>}
-          {edit.kind === 'rule' && <>
-            <div className="export-grid">{(['from', 'to'] as const).map(key => <label key={key}>{key === 'from' ? 'Source state' : 'Destination state'}<select value={edit.rule[key]} onChange={e => setEdit({...edit, rule: {...edit.rule, [key]: e.target.value}})}>{base.states.map(s => <option key={s} disabled={key === 'from' && (base.definition.accept.includes(s) || base.definition.reject.includes(s))}>{s}</option>)}</select></label>)}</div>
-            {edit.rule.tapes.map((t, i) => <div className="tape-action" key={i}><strong>Tape {i + 1}</strong>{(['Read', 'Write', 'Move'] as const).map((label, j) => <label key={label}>{label}<select aria-label={`Tape ${i + 1} ${label}`} value={t[j]} onChange={e => {const tapes = structuredClone(edit.rule.tapes); if (j === 2) tapes[i][2] = e.target.value as 'L' | 'R' | 'S'; else tapes[i][j === 0 ? 0 : 1] = e.target.value; setEdit({...edit, rule: {...edit.rule, tapes}});}}>{(j === 2 ? ['L', 'R', 'S'] : base.definition.tape_alphabet).map(symbol => <option key={symbol} value={symbol}>{j === 2 ? {L: 'L · Left', R: 'R · Right', S: 'S · Stay'}[symbol] : symbol === ' ' ? '␠ (space)' : symbol}</option>)}</select></label>)}</div>)}
-          </>}
-          {edit.kind === 'settings' && <>
-            <label>Name<input required value={edit.name} onChange={e => setEdit({...edit, name: e.target.value})} /></label>
-            <label>Model<select value={edit.model} onChange={e => setEdit({...edit, model: e.target.value as MachineDefinition['model']})}><option value="deterministic">Deterministic</option><option value="nondeterministic">Nondeterministic</option></select></label>
-            <div className="export-grid"><label>Tapes<input type="number" required min={1} max={32} value={Number.isNaN(edit.tapes) ? '' : edit.tapes} onChange={e => setEdit({...edit, tapes: e.target.valueAsNumber})} /></label><label>Blank symbol<input required value={edit.blank} onChange={e => setEdit({...edit, blank: e.target.value})} /></label></div>
-            <label>Input alphabet (JSON array)<input required value={edit.input} onChange={e => setEdit({...edit, input: e.target.value})} /></label>
-            <label>Tape alphabet (JSON array)<input required value={edit.alphabet} onChange={e => setEdit({...edit, alphabet: e.target.value})} /></label>
-            <p className="help">Example: ["0", "1", "_"]. Increasing tapes adds blank / blank / stay actions. Decreasing tapes removes trailing tape actions and embedded inputs. Existing rules must use the resulting alphabet.</p>
-          </>}
-          {edit.kind === 'rules' && <div>{ruleRows(base, edit.from, edit.to)}</div>}
-        </fieldset>
-        {base.revision !== machine?.revision && <p className="error-banner" role="alert">The machine changed while this editor was open. Close and reopen it to edit the latest version.</p>}
-        {error && <p className="error-banner" role="alert">{error}</p>}
-        {edit.kind !== 'rules' && <div className="export-actions">
-          {edit.kind === 'state' && edit.original ? <button type="button" disabled={w.saving || base.revision !== machine?.revision} onClick={removeState}>Delete state</button> : edit.kind === 'rule' && edit.index !== undefined ? <button type="button" disabled={w.saving || base.revision !== machine?.revision} onClick={() => void save({transitions: base.definition.transitions.filter((_, i) => i !== edit.index)})}>Delete transition</button> : <span />}
-          <button className="primary" type="submit" disabled={w.saving || base.revision !== machine?.revision}>{w.saving ? 'Saving…' : 'Apply changes'}</button>
-        </div>}
-      </form>}
-    </dialog>
-  </>;
+
+  function close() {setEdit(null); setError('');}
+  function chooseTool(next: typeof tool) {if (w.saving) return; if (next !== 'inspect') onBeginEdit?.(); close(); setTool(next); setSource(null); playback.pause(); playback.setFollow(false);}
+  function pickEdge(from: string, to: string) {
+    if (!machine || disabled || tool !== 'inspect') return;
+    const index = machine.definition.transitions.findIndex(r => r.from === from && r.to === to);
+    if (index >= 0) open({kind: 'rule', index, rule: structuredClone(machine.definition.transitions[index])});
+  }
+  const stale = Boolean(base && base.revision !== machine?.revision);
+  const locked = w.saving || stale || !w.connected;
+  const anchor: GraphAnchor = edit?.kind === 'state' ? {state: edit.original, point: edit.point}
+    : edit?.kind === 'rule' ? {from: edit.rule.from, to: edit.rule.to} : {};
+  const related = edit?.kind === 'rule' && base ? base.definition.transitions.map((r, index) => ({r, index}))
+    .filter(({r}) => r.from === edit.rule.from && r.to === edit.rule.to) : [];
+  const rulePosition = related.findIndex(r => edit?.kind === 'rule' && r.index === edit.index);
+  const actions = <div className="inline-actions">
+    {edit?.kind === 'state' && edit.original && <button className="icon-button danger" type="button" disabled={locked} title="Delete state and connected transitions" aria-label="Delete state and connected transitions" onClick={removeState}><Icon name="trash" size={15} /></button>}
+    {edit?.kind === 'rule' && edit.index !== undefined && <button className="icon-button danger" type="button" disabled={locked} title="Delete transition" aria-label="Delete transition" onClick={() => void save({transitions: base!.definition.transitions.filter((_, i) => i !== edit.index)})}><Icon name="trash" size={15} /></button>}
+    <span className="inline-save-hint">{w.saving ? 'Saving…' : 'Enter to save'}</span>
+    <button className="icon-button" type="button" disabled={w.saving} aria-label="Cancel edit" title="Cancel (Esc)" onClick={close}><Icon name="close" size={15} /></button>
+    <button className="icon-button primary" type="submit" disabled={locked} aria-label="Save changes" title="Save changes (Enter)"><Icon name="check" size={16} /></button>
+  </div>;
+  const feedback = <>{stale && <p className="inline-error" role="alert">Machine changed. Close and select it again.</p>}{error && <p className="inline-error" role="alert">{error}</p>}</>;
+  const content = edit && base && <form className={`inline-machine-form ${edit.kind}-form`} aria-label={edit.kind === 'state' ? 'Edit state on graph' : edit.kind === 'rule' ? 'Edit transition on graph' : 'Machine settings'} onKeyDown={event => {if (event.key === 'Enter' && (event.target as HTMLElement).tagName !== 'BUTTON') {event.preventDefault(); event.currentTarget.requestSubmit();}}} onSubmit={event => {event.preventDefault(); submit();}}>
+    <fieldset disabled={locked}>
+      {edit.kind === 'state' && <>
+        <label className="inline-state-name"><span className="sr-only">State name</span><input required autoFocus placeholder="State name" value={edit.name} onChange={e => setEdit({...edit, name: e.target.value})} /></label>
+        <div className="inline-state-properties"><label><span className="sr-only">State type</span><select aria-label="State type" value={edit.role} onChange={e => setEdit({...edit, role: e.target.value})}><option value="normal">Normal state</option><option value="accept">Accept state</option><option value="reject">Reject state</option></select></label>
+          <label className="inline-check"><input type="checkbox" checked={edit.start} disabled={edit.original === base.definition.start} onChange={e => setEdit({...edit, start: e.target.checked})} />Start</label></div>
+      </>}
+      {edit.kind === 'rule' && <>
+        <div className="inline-rule-heading"><span>{edit.rule.from} → {edit.rule.to}</span>
+          {related.length > 1 && edit.index !== undefined && <div className="inline-rule-pager"><button className="icon-button" type="button" title="Previous rule on this connection" aria-label="Previous rule on this connection" disabled={rulePosition <= 0} onClick={() => {const r = related[rulePosition - 1]; open({kind: 'rule', index: r.index, rule: structuredClone(r.r)}, base);}}><Icon name="back" size={13} /></button><span>{rulePosition + 1} / {related.length}</span><button className="icon-button" type="button" title="Next rule on this connection" aria-label="Next rule on this connection" disabled={rulePosition >= related.length - 1} onClick={() => {const r = related[rulePosition + 1]; open({kind: 'rule', index: r.index, rule: structuredClone(r.r)}, base);}}><Icon name="next" size={13} /></button></div>}
+        </div>
+        <div className="inline-tape-head"><span>Tape</span><span>Read</span><span>Write</span><span>Move</span></div>
+        <div className="inline-tape-rows">{edit.rule.tapes.map((t, i) => <div className="inline-tape-action" key={i}><span>{i + 1}</span>{(['Read', 'Write', 'Move'] as const).map((label, j) => <select key={label} aria-label={`Tape ${i + 1} ${label}`} value={t[j]} onChange={e => {const tapes = structuredClone(edit.rule.tapes); if (j === 2) tapes[i][2] = e.target.value as 'L' | 'R' | 'S'; else tapes[i][j === 0 ? 0 : 1] = e.target.value; setEdit({...edit, rule: {...edit.rule, tapes}});}}>{(j === 2 ? ['L', 'R', 'S'] : base.definition.tape_alphabet).map(symbol => <option key={symbol} value={symbol}>{j === 2 ? {L: '← Left', R: '→ Right', S: '· Stay'}[symbol] : symbol === ' ' ? '␠' : symbol}</option>)}</select>)}</div>)}</div>
+      </>}
+      {edit.kind === 'settings' && <div className="inline-settings-grid">
+        <label>Name<input required value={edit.name} onChange={e => setEdit({...edit, name: e.target.value})} /></label>
+        <label>Model<select value={edit.model} onChange={e => setEdit({...edit, model: e.target.value as MachineDefinition['model']})}><option value="deterministic">Deterministic</option><option value="nondeterministic">Nondeterministic</option></select></label>
+        <label>Tapes<input type="number" required min={1} max={32} value={Number.isNaN(edit.tapes) ? '' : edit.tapes} onChange={e => setEdit({...edit, tapes: e.target.valueAsNumber})} /></label>
+        <label>Blank<input required value={edit.blank} onChange={e => setEdit({...edit, blank: e.target.value})} /></label>
+        <SymbolList label="Input alphabet" symbols={edit.input} onChange={input => setEdit({...edit, input})} />
+        <SymbolList label="Tape alphabet" symbols={edit.alphabet} onChange={alphabet => setEdit({...edit, alphabet})} />
+      </div>}
+    </fieldset>
+    {feedback}{actions}
+  </form>;
+  const tools = <div className="graph-edit-tools" role="toolbar" aria-label="Machine tools">
+    <button className="icon-button" aria-label="Select and edit" title="Select and edit" aria-pressed={tool === 'inspect'} onClick={() => chooseTool('inspect')}><Icon name="cursor" size={17} /></button>
+    <button className="icon-button" disabled={disabled} aria-label="Add state" title="Add state — click empty canvas" aria-pressed={tool === 'state'} onClick={() => chooseTool('state')}><Icon name="state" size={18} /></button>
+    <button className="icon-button" disabled={disabled} aria-label="Transition tool" title="Transition — select source, then destination" aria-pressed={tool === 'transition'} onClick={() => chooseTool('transition')}><Icon name="transition" size={18} /></button>
+    <span className="toolbar-divider" />
+    <button className="icon-button" disabled={disabled || !machine?.can_undo} aria-label="Undo change" title="Undo (Ctrl+Z)" onClick={() => void w.changeHistory('undo')}><Icon name="undo" size={17} /></button>
+    <button className="icon-button" disabled={disabled || !machine?.can_redo} aria-label="Redo change" title="Redo (Ctrl+Shift+Z)" onClick={() => void w.changeHistory('redo')}><Icon name="redo" size={17} /></button>
+    <button className="icon-button" disabled={disabled} aria-label="Machine settings" title="Machine settings" aria-pressed={edit?.kind === 'settings'} onClick={() => {if (edit?.kind === 'settings') {close(); return;} const d = machine!.definition; open({kind: 'settings', name: d.name, model: d.model, tapes: d.tapes, blank: d.blank, input: [...d.input_alphabet], alphabet: [...d.tape_alphabet]});}}><Icon name="settings" size={17} /></button>
+    <button className="icon-button" disabled={!machine} aria-label="Download YAML" title="Download YAML" onClick={() => downloadBlob(new Blob([machine!.source], {type: 'text/yaml'}), machine!.path.split('/').pop() || 'machine.yaml')}><Icon name="code" size={17} /></button>
+  </div>;
+  const help = w.saving ? 'Saving YAML…' : !w.connected ? 'Reconnecting to workspace…' : disabled ? machine?.mode === 'Unsaved VS Code buffer' ? 'Save your VS Code buffer to edit here.' : 'Choose a machine to begin.'
+    : edit ? 'Edit here · Enter saves · Esc cancels' : tool === 'state' ? 'Click empty canvas to add a state.' : tool === 'transition' ? source ? `From ${source} → select destination. Esc cancels.` : 'Select source → destination. Same state twice creates a loop.'
+    : 'Click a state or connection to edit · Scroll to zoom · Middle drag to pan';
+  return <StateGraph machine={machine} playback={playback} tools={tools} help={<>{!edit && error ? <span role="alert">{error}</span> : help}{machine?.mode === 'Imported file' && ' · Imported: download YAML to keep edits.'}</>}
+    settings={edit?.kind === 'settings' ? <div className="graph-settings">{content}</div> : null}
+    inlineEditor={edit && edit.kind !== 'settings' ? {key: `${base?.revision}:${edit.kind}:${edit.kind === 'state' ? edit.original || 'new' : edit.index ?? 'new'}`, anchor, content,
+      height: edit.kind === 'state' ? 190 : Math.min(330, 155 + edit.rule.tapes.length * 36)} : null}
+    addingState={tool === 'state' && !edit} onCanvas={point => {if (!disabled) {let index = 0; while (machine!.states.includes(`q${index}`)) index++; open({...stateForm(), name: `q${index}`, point});}}}
+    onState={disabled ? undefined : pickState} onEdge={disabled || tool !== 'inspect' ? undefined : pickEdge} selectedState={source || (edit?.kind === 'state' ? edit.original : null)} />;
 }

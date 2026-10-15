@@ -34,13 +34,18 @@ buffers. Requests are aborted on unmount, and selection/input/trace generations
 reject outdated results. Simulation and exports use the diagram revision so
 results match the selected machine. Traces include initial and subsequent tape
 configurations, applied rules, and a final execution status and stop reason.
+Press **Load Trace** to execute the current machine and starting tapes. Changing
+the machine, input, or step limit clears the old trace without starting a run.
+The button shows a loading wheel while the trace is computed and indexed. Runs
+that reach a limit show a dismissible overlay with a browser-persisted **Do not
+show again** option; completed computations do not show the overlay.
 Runs above 10,000 requested steps use initial sparse tapes and a sequence of rule
 indices instead of a full snapshot per step. The simulation worker fetches this
 recording and builds head positions and per-cell write histories. Visible tape
 windows are recovered with binary search, so arbitrary seeks do not replay the
-whole run. Instant playback scans rule/state metadata on another worker and keeps
-the full history. Changing inputs or selecting a machine disposes the old client
-worker; the bounded server request can finish independently.
+whole run. Playback speed controls how quickly the recorded timeline is animated.
+Changing inputs or selecting a machine disposes the old client worker; the bounded
+server request can finish independently.
 
 `GET /api/limits` benchmarks three 50,000-step counter runs on the API computer,
 caches the median speed for that server process, and returns a five-second estimate
@@ -75,12 +80,40 @@ Unchanged top-level YAML fields retain their source text; changed fields are
 serialized again. Comments inside changed fields are not retained. Grouped transitions remain
 grouped. No schema or machine syntax changes are required.
 
-Select / edit opens state properties or the rules for an edge. Transition tool
-selects a source, then a destination (including self-loops), then opens one
-read/write/move row per tape. The expandable states and transitions list offers
-the same operations without targeting the diagram. Graph states and edges also
-support keyboard activation with Enter or Space. Escape cancels source selection.
+Icon tools live in the state graph header. Select and edit opens state properties
+at the node or read/write/move fields directly on the connection. Transition tool
+selects a source, then a destination (including self-loops). Add state selects a
+location on empty canvas. Enter or the checkmark saves; Escape cancels. Multiple
+rules on one connection are navigated with previous/next arrows in the inline
+editor. There is no separate state or transition list; YAML remains the list view.
+
+Inline editors live in the SVG and move with the graph. Camera keyboard shortcuts
+ignore focused form controls. Machine settings expands inside the graph panel.
 State renames update references; state deletion removes connected rules and
-requires choosing another start state first. Machine settings supports model,
-name, alphabets, blank, and tape count; tape count changes resize all rule actions
-and any embedded inputs. Invalid combinations leave the YAML untouched.
+requires choosing another start state first. Settings supports model, name,
+alphabets, blank, and tape count; tape count changes resize rule actions and any
+embedded inputs. Invalid combinations leave the YAML untouched.
+
+Playback and debugger is a collapsible bar at the bottom of the workspace. It
+starts collapsed, opens when a new trace arrives, and tucks away when graph editing
+begins. Collapsing preserves playback,
+timeline, speed, and breakpoint settings.
+
+
+Machine history uses `POST /api/history` with a revision and `undo`/`redo`.
+Each edit records the exact before/after YAML; undo and redo autosave atomically
+and invalidate the trace. The current selection retains up to 50 edits in server
+memory. Selection resets history, and external file changes disable history
+rather than overwrite another editor's work. Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, and
+matching Cmd shortcuts work outside editable inputs, with icon buttons in the
+graph toolbar as well.
+
+New machine (+) in the library opens a name and filename form. `POST /api/create`
+creates a valid one-state deterministic machine in the workspace's `machines/`
+folder, then selects it. Creation refuses directory traversal, symlinks, existing
+filenames, and non-YAML extensions.
+
+Alphabet settings use symbol lists rather than JSON text. Entries accept one
+Unicode character, including spaces; duplicate symbols and incomplete rows are
+rejected. Arrays stay typed as strings across the API, and Python serializes
+numeric-looking or YAML-significant symbols with the necessary quoting.

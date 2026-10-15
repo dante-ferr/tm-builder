@@ -4,7 +4,7 @@ import {api, downloadBlob, errorMessage} from '../lib/api';
 import type {ExportOptions, Machine, MachineSource} from '../lib/types';
 import {Icon} from './icon';
 
-export function ExportDialog({machine}: {machine: Machine | null}) {
+export function ExportDialog({machine, svg}: {machine: Machine | null; svg: SVGSVGElement | null}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const lifetime = useRef<AbortController | null>(null);
   const fileRequest = useRef(0);
@@ -45,9 +45,20 @@ export function ExportDialog({machine}: {machine: Machine | null}) {
     } catch (error) {if (!lifetime.current.signal.aborted) setStatus(errorMessage(error));}
     finally {if (!lifetime.current.signal.aborted) setBusy(false);}
   }
-  return <><button id="export-open" onClick={() => {setStatus(''); dialog.current?.showModal();}}><Icon name="download" size={15} />Export table</button>
+  function downloadSvg() {
+    if (!svg || !machine) return;
+    const copy = svg.cloneNode(true) as SVGSVGElement;
+    copy.removeAttribute('style');
+    copy.querySelectorAll('[data-inline-editor]').forEach(node => node.remove());
+    copy.querySelectorAll('.editing-node, .editing-edge').forEach(node => node.classList.remove('editing-node', 'editing-edge'));
+    copy.querySelectorAll('.active-state, .active-rule, .edit-selected, .editable').forEach(node => {node.classList.remove('active-state', 'active-rule', 'edit-selected', 'editable'); node.removeAttribute('tabindex'); node.removeAttribute('role'); node.removeAttribute('aria-label');});
+    downloadBlob(new Blob([new XMLSerializer().serializeToString(copy)], {type: 'image/svg+xml'}), `${machine.filename}.svg`);
+  }
+  return <><button id="export-open" onClick={() => {setStatus(''); dialog.current?.showModal();}}><Icon name="download" size={15} />Export</button>
     <dialog ref={dialog} className="export-dialog" aria-labelledby="export-title"><form onSubmit={event => {event.preventDefault(); void submit();}}>
-      <div className="export-heading"><div><p className="eyebrow">TAKE YOUR WORK WITH YOU</p><h2 id="export-title">Export transition table</h2></div><button type="button" className="icon-button" onClick={() => dialog.current?.close()} aria-label="Close export menu"><Icon name="close" /></button></div>
+      <div className="export-heading"><div><p className="eyebrow">TAKE YOUR WORK WITH YOU</p><h2 id="export-title">Export</h2></div><button type="button" className="icon-button" onClick={() => dialog.current?.close()} aria-label="Close export menu"><Icon name="close" /></button></div>
+      <div className="export-actions"><span>State graph</span><button type="button" onClick={downloadSvg} disabled={!svg || !machine}>Download SVG<Icon name="download" size={15} /></button></div>
+      <h3>Transition table</h3>
       <fieldset disabled={busy}>
         <label>Machine<select value={source} onChange={event => {setSource(event.target.value); setStatus('');}}><option value="current">Currently selected machine</option><option value="file">Another YAML file…</option></select></label>
         <p className="help">{imported ? file?.filename || 'Choose a YAML machine to export.' : machine ? `${machine.name} · ${machine.path.split('/').pop()}` : 'Select a valid machine, or choose another YAML file.'}</p>
