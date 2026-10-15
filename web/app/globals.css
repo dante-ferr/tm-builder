@@ -248,7 +248,10 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 #graph .node.edit-selected ellipse, #graph .node.editable:focus ellipse { stroke: var(--accent); stroke-width: 4; }
 #graph .edge.editable:hover path, #graph .edge.editable:focus path { stroke: var(--accent); stroke-width: 3; }
 #graph .node.editable:hover ellipse { stroke-width: 3; }
-#graph .editing-node, #graph .editing-edge text { visibility: hidden; }
+#graph .editing-node ellipse { stroke: var(--accent); stroke-width: 4; fill: var(--accent-soft); }
+#graph .editing-node text, #graph .editing-edge text { fill: var(--accent); font-weight: 600; }
+#graph .editing-edge path, #graph .editing-edge polygon { stroke: var(--accent); stroke-width: 3; }
+#graph .editing-edge polygon { fill: var(--accent); }
 .graph-inline-editor { height: 100%; padding: 4px; overflow: auto; color: var(--text); font: 12px/1.5 Arial, sans-serif; cursor: default; }
 .inline-machine-form { padding: 12px; border: 1px solid var(--accent); background: var(--surface); border-radius: 9px; }
 .inline-machine-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
@@ -310,3 +313,14 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .create-machine-form input { width: 100%; }
 .create-machine-actions { display: flex; justify-content: flex-end; gap: 6px; }
 .create-machine-actions button { font-size: 11px; padding: 7px 9px; }
+
+.graph-editor-layer { position: absolute; z-index: 2; width: 380px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); transform: translate(-50%, -50%); transition: left 180ms cubic-bezier(.2, .75, .25, 1), top 180ms cubic-bezier(.2, .75, .25, 1); }
+.graph-stage:has(.graph-canvas.panning) .graph-editor-layer { transition: none; }
+@media (prefers-reduced-motion: reduce) { .graph-editor-layer { transition: none; } }
+
+.graph-editor-layer { display: flex; flex-direction: column; }
+.graph-editor-layer .graph-inline-editor { flex: 1; min-height: 0; height: auto; }
+.graph-editor-handle { display: flex; align-items: center; flex-shrink: 0; gap: 7px; width: 100%; min-height: 25px; padding: 4px 9px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 10px; cursor: grab; touch-action: none; user-select: none; }
+.editor-drag-hint { margin-left: auto; font-size: 9px; }
+.graph-editor-layer.dragging-editor { transition: none; }
+.graph-editor-layer.dragging-editor .graph-editor-handle { cursor: grabbing; }

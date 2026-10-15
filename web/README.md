@@ -87,7 +87,9 @@ location on empty canvas. Enter or the checkmark saves; Escape cancels. Multiple
 rules on one connection are navigated with previous/next arrows in the inline
 editor. There is no separate state or transition list; YAML remains the list view.
 
-Inline editors live in the SVG and move with the graph. Camera keyboard shortcuts
+Inline editors are HTML anchored to graph coordinates. They move with the graph
+but keep their size in website pixels, independently of graph zoom. Selection
+centers the editor without changing zoom. Camera keyboard shortcuts
 ignore focused form controls. Machine settings expands inside the graph panel.
 State renames update references; state deletion removes connected rules and
 requires choosing another start state first. Settings supports model, name,
@@ -117,3 +119,17 @@ Alphabet settings use symbol lists rather than JSON text. Entries accept one
 Unicode character, including spaces; duplicate symbols and incomplete rows are
 rejected. Arrays stay typed as strings across the API, and Python serializes
 numeric-looking or YAML-significant symbols with the necessary quoting.
+
+
+The camera fits when selecting a different machine or pressing Fit view. Edits,
+undo/redo, window resizing, graph expansion, settings panels, and playback bar
+changes preserve manual zoom and pan. Active playback following still starts at
+85% zoom; subsequent manual zoom is preserved while following.
+
+
+Selected states and connections remain visible and highlighted while editing.
+Editors anchor above the selected item using SVG-to-screen coordinate conversion.
+Drag the editor's header to reposition it, or focus the header and use arrow keys
+(Shift moves farther). The offset is remembered for that editor while working;
+it does not alter the machine YAML or move the camera. Editor size and drag
+spacing stay in website pixels as graph zoom changes.

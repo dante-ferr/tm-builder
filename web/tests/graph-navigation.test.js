@@ -197,8 +197,46 @@ test('typing and arrow keys inside an inline graph editor do not move the camera
   assert.equal(event.defaultPrevented, false);
 });
 
-test('revealing an inline editor centers its graph coordinates in the viewport', t => {
+test('selecting a graph item pans without changing the current zoom', t => {
   const {navigation, view} = fixture(t);
-  navigation.reveal(120, 60, 380, 230);
-  assert.deepEqual(view(), {x: 280, y: 140, scale: 1});
+  navigation.zoom(.63);
+  const scale = view().scale;
+  navigation.reveal(120, 60);
+  assert.deepEqual(view(), {x: 400 - 120 * scale, y: 200 - 60 * scale, scale});
+});
+
+test('editor spacing stays in website pixels at every graph zoom', t => {
+  const {navigation, view} = fixture(t);
+  for (const factor of [.1, 20, .5]) {
+    navigation.zoom(factor);
+    const scale = view().scale;
+    navigation.reveal(120, 60, {offsetY: -127});
+    const anchor = navigation.project(120, 60);
+    assert.equal(view().scale, scale);
+    assert.equal(anchor.x, 400);
+    assert.equal(anchor.y - 127, 200);
+  }
+});
+
+test('viewport resizing preserves manual zoom and pan', t => {
+  const {graph, navigation, view} = fixture(t);
+  navigation.zoom(.4);
+  emit(graph, 'keydown', {key: 'd'});
+  const before = view();
+  graph.clientWidth = 1200; graph.clientHeight = 180;
+  navigation.resize();
+  assert.deepEqual(view(), before);
+});
+
+test('diagram redraws preserve the camera while a new machine can explicitly fit', t => {
+  const {navigation, svg, view} = fixture(t);
+  navigation.zoom(.4);
+  const before = view();
+  const replacement = {...svg, style: {}, viewBox: {baseVal: {x: 0, y: 0, width: 900, height: 800}}};
+  navigation.setDiagram(replacement, {fit: false});
+  assert.equal(replacement.style.transform, svg.style.transform);
+  navigation.setDiagram(replacement, {fit: true});
+  const numbers = replacement.style.transform.match(/-?\d+(?:\.\d+)?/g).map(Number);
+  assert.notEqual(numbers[2], before.scale);
+  assert.equal(numbers[2], 340 / 800);
 });

@@ -1,7 +1,7 @@
 // Keep the diagram in a fixed viewport so navigation also works when it fits.
 export const FOLLOW_ZOOM = 0.85;
 
-export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, onFollowStop = () => {}) {
+export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, onFollowStop = () => {}, onViewChange = () => {}) {
   let svg: SVGSVGElement | null = null;
   let scale = 1, offsetX = 0, offsetY = 0;
   let followedNode: SVGGraphicsElement | null = null;
@@ -29,6 +29,7 @@ export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, on
     svg.style.width = `${width}px`;
     svg.style.height = `${height}px`;
     svg.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    onViewChange();
   }
   function fit() {
     if (!svg) return;
@@ -106,15 +107,17 @@ export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, on
   }, navigationEvents);
   return {
     fit() { stopFollowing(true); fit(); },
-    resize() { if (followedNode) centerFollowedNode(); else fit(); },
+    resize() { if (followedNode) centerFollowedNode(); else updateView(); },
     zoom,
-    reveal(x: number, y: number, width: number, height: number) {
+    project(x: number, y: number) {
+      return {x: offsetX + (x - (svg?.viewBox.baseVal.x || 0)) * scale,
+        y: offsetY + (y - (svg?.viewBox.baseVal.y || 0)) * scale};
+    },
+    reveal(x: number, y: number, {offsetY: editorOffsetY = 0} = {}) {
       if (!svg) return;
       stopFollowing(true);
-      scale = Math.min(1, (graph.clientWidth - 32) / width, (graph.clientHeight - 80) / height);
-      scale = Math.max(.2, scale);
       offsetX = graph.clientWidth / 2 - (x - svg.viewBox.baseVal.x) * scale;
-      offsetY = graph.clientHeight / 2 - (y - svg.viewBox.baseVal.y) * scale;
+      offsetY = graph.clientHeight / 2 - editorOffsetY - (y - svg.viewBox.baseVal.y) * scale;
       updateView();
     },
     startFollowing(node: SVGGraphicsElement | null) {
@@ -126,7 +129,10 @@ export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, on
     },
     follow(node: SVGGraphicsElement | null) { if (followedNode && node) { followedNode = node; centerFollowedNode(); } },
     stopFollowing,
-    setDiagram(diagram: SVGSVGElement) { stopPan(); stopFollowing(); svg = diagram; fit(); },
+    setDiagram(diagram: SVGSVGElement, {fit: fitOnLoad = true} = {}) {
+      stopPan(); stopFollowing(); svg = diagram;
+      if (fitOnLoad) fit(); else updateView();
+    },
     stopPan,
   };
 }

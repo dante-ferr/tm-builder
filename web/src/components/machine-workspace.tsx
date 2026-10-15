@@ -24,7 +24,7 @@ export default function MachineWorkspace() {
       <div className="workspace-content">
         {w.error && <div className="error-banner" role="alert">{w.error}</div>}
         {w.diagram && !w.diagram.valid && w.diagram.revision !== 'unselected' && <div className="error-banner" role="alert">{w.diagram.diagnostics.map((diagnostic, index) => <div key={index}>Line {diagnostic.line}:{diagnostic.column} · {diagnostic.message}</div>)}</div>}
-        <MachineEditor key={`${w.diagram?.path}:${w.historyGeneration}`} workspace={w} playback={playback} onBeginEdit={() => setPlaybackExpanded(false)} />
+        <MachineEditor key={w.diagram?.path} workspace={w} playback={playback} onBeginEdit={() => setPlaybackExpanded(false)} />
       </div>
       <PlaybackPanel trace={w.trace} machine={w.machine} message={w.message} playback={playback} expanded={playbackExpanded} onExpandedChange={setPlaybackExpanded} />
       <footer className="workspace-footer"><span><span className={`connection-dot ${w.connected ? 'connected' : ''}`} />{w.machine ? w.machine.mode : w.connected ? 'Workspace ready' : 'Connecting…'}</span><span>Transitions <code>read → write, move</code><span className="footer-divider">/</span><code>|</code> separates tapes</span></footer>

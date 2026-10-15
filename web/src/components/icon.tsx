@@ -1,5 +1,6 @@
 import type {CSSProperties} from 'react';
 const paths = {
+  grip: 'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',
   undo: 'M3 10h10a7 7 0 0 1 7 7M3 10l5-5m-5 5 5 5',
   redo: 'M21 10H11a7 7 0 0 0-7 7m17-7-5-5m5 5-5 5',
   cursor: 'm5 3 14 9-7 1-3 7Z',

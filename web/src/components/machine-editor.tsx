@@ -22,6 +22,7 @@ export function MachineEditor({workspace: w, playback, onBeginEdit}: {workspace:
   const [error, setError] = useState('');
   const disabled = !machine || !w.connected || w.selecting || w.saving || machine.mode === 'Unsaved VS Code buffer';
   useEffect(() => {setSource(null);}, [machine?.revision]);
+  useEffect(() => {setEdit(null); setError(''); setSource(null);}, [w.historyGeneration]);
   useEffect(() => {
     const cancel = (event: KeyboardEvent) => {if (event.key === 'Escape' && !w.saving) {setEdit(null); setError(''); setSource(null); setTool('inspect');}};
     window.addEventListener('keydown', cancel);
