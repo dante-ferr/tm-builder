@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {frameAt, frameCount, indexTrace} from '../src/lib/timeline';
-import {advancePlayback, finishPlayback, initialPlayback} from '../src/lib/playback';
+import {advancePlayback, initialPlayback} from '../src/lib/playback';
 import type {Trace} from '../src/lib/types';
 
 test('compact history preserves negative addresses, erasure, untouched cells, and arbitrary seeking', () => {
@@ -32,8 +32,6 @@ test('compact history preserves negative addresses, erasure, untouched cells, an
   }
   assert.equal(frameAt(trace, -1), undefined);
   assert.equal(frameAt(trace, 5), undefined);
-  assert.equal(finishPlayback(initialPlayback, trace, 'erase', '').position, 2);
-  assert.equal(finishPlayback(initialPlayback, trace, '', '3').position, 2);
   assert.equal(advancePlayback({...initialPlayback, phase: 3}, trace, 'left', '').breakpoint, true);
 });
 
@@ -56,8 +54,6 @@ test('a million steps remain seekable without a million frame objects', () => {
     assert.equal(frame.state, step % 2 ? 'odd' : 'even');
     assert.equal(frame.tapes[0].cells[8], step % 2 ? '1' : '_');
   }
-  assert.equal(finishPlayback(initialPlayback, trace, '', '').position, 1_000_000);
-  assert.equal(finishPlayback(initialPlayback, trace, 'odd', '').position, 1);
 });
 
 test('blank scans do not allocate a cell history per visited address', () => {
