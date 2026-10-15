@@ -6,6 +6,9 @@ from mtm.tape import Tape
 
 from tm_builder.definition import MachineDefinition
 
+MAX_STEPS = 10_000_000
+SNAPSHOT_LIMIT = 10_000
+
 
 def _rule(transition, index):
     return {"index": index, "source": transition.source, "to": transition.to,
@@ -19,12 +22,14 @@ def _reason(status, nondeterministic=False):
             "RUNNING": "Execution stopped at the step or configuration limit."}[status]
 
 
-def simulate(definition: MachineDefinition, inputs=None, max_steps=1000, *, setup=None):
-    if type(max_steps) is not int or not 1 <= max_steps <= 10000:
-        raise ValueError("max_steps must be an integer between 1 and 10000.")
+def simulate(definition: MachineDefinition, inputs=None, max_steps=1000, *, setup=None, compact=False):
+    if type(max_steps) is not int or not 1 <= max_steps <= MAX_STEPS:
+        raise ValueError(f"max_steps must be an integer between 1 and {MAX_STEPS}.")
     if definition.model == "nondeterministic":
         return _simulate_nondeterministic(definition, inputs, max_steps, setup=setup)
     machine = definition.create_machine(inputs, setup=setup)
+    if compact or max_steps > SNAPSHOT_LIMIT:
+        return _simulate_recording(definition, machine, max_steps)
     rules = {(transition.source, tuple(action[0] for action in transition.tapes)): (index, transition)
              for index, transition in enumerate(definition.transitions)}
 
@@ -49,6 +54,32 @@ def simulate(definition: MachineDefinition, inputs=None, max_steps=1000, *, setu
             frames.append(frame)
     return {"status": status, "reason": _reason(status), "frames": frames,
             "configuration": machine.get_configuration()}
+
+
+def _simulate_recording(definition, machine, max_steps):
+    """Store rule indices instead of millions of duplicate tape windows.
+
+    Initial tape contents and the rule applied at every step reproduce the exact
+    history, including negative addresses, erasure, and head movement.
+    """
+    recording = {
+        'blank': definition.blank, 'start': machine.current_state,
+        'initial': [{'head': tape.head, 'cells': list(tape.cells.items())} for tape in machine.tapes],
+        'rules': [_rule(rule, index) for index, rule in enumerate(definition.transitions)],
+        'steps': [],
+    }
+    rules = {(rule.source, tuple(action[0] for action in rule.tapes)): index
+             for index, rule in enumerate(definition.transitions)}
+    status = 'ACCEPT' if machine.current_state in machine.accept_states else (
+        'REJECT' if machine.current_state in machine.reject_states else 'RUNNING')
+    while status == 'RUNNING' and machine.step_count < max_steps:
+        index = rules.get((machine.current_state, tuple(tape.read() for tape in machine.tapes)))
+        before = machine.step_count
+        status = machine.step()
+        if machine.step_count != before:
+            recording['steps'].append(index)
+    return {'status': status, 'reason': _reason(status), 'frames': [],
+            'recording': recording, 'configuration': machine.get_configuration()}
 
 
 def _simulate_nondeterministic(definition, inputs, max_steps, max_configurations=10000, *, setup=None):

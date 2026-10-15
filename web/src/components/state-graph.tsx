@@ -7,7 +7,10 @@ import type {PlaybackController} from '../hooks/use-playback';
 import {Icon} from './icon';
 
 type Navigation = ReturnType<typeof mountGraphNavigation>;
-export function StateGraph({machine, playback: p}: {machine: Machine | null; playback: PlaybackController}) {
+export function StateGraph({machine, playback: p, onState, onEdge, selectedState}: {
+  machine: Machine | null; playback: PlaybackController;
+  onState?: (state: string) => void; onEdge?: (from: string, to: string) => void; selectedState?: string | null;
+}) {
   const graph = useRef<HTMLDivElement>(null);
   const navigation = useRef<Navigation | null>(null);
   const [svg, setSvg] = useState<SVGSVGElement | null>(null);
@@ -55,11 +58,34 @@ export function StateGraph({machine, playback: p}: {machine: Machine | null; pla
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, [expanded]);
+  useEffect(() => {
+    if (!svg || !machine) return;
+    const controller = new AbortController();
+    for (const node of svg.querySelectorAll<SVGGElement>('.node, .edge')) {
+      const state = node.id.match(/^state_(\d+)$/);
+      const edge = node.id.match(/^edge_(\d+)_(\d+)$/);
+      const activate = state && onState ? () => onState(machine.states[Number(state[1])])
+        : edge && onEdge ? () => onEdge(machine.states[Number(edge[1])], machine.states[Number(edge[2])]) : null;
+      node.classList.toggle('edit-selected', Boolean(state && machine.states[Number(state[1])] === selectedState));
+      if (!activate) continue;
+      node.setAttribute('tabindex', '0'); node.setAttribute('role', 'button');
+      node.setAttribute('aria-label', state ? `State ${machine.states[Number(state[1])]}` : `Transitions ${machine.states[Number(edge![1])]} to ${machine.states[Number(edge![2])]}`);
+      node.classList.add('editable');
+      node.addEventListener('click', activate, {signal: controller.signal});
+      node.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {event.preventDefault(); event.stopPropagation(); activate();}
+      }, {signal: controller.signal});
+    }
+    return () => {
+      controller.abort();
+      svg.querySelectorAll('.editable').forEach(node => {node.classList.remove('editable'); node.removeAttribute('tabindex'); node.removeAttribute('role'); node.removeAttribute('aria-label');});
+    };
+  }, [svg, machine, onState, onEdge, selectedState]);
   function download() {
     if (!svg || !machine) return;
     const copy = svg.cloneNode(true) as SVGSVGElement;
     copy.removeAttribute('style');
-    copy.querySelectorAll('.active-state, .active-rule').forEach(node => node.classList.remove('active-state', 'active-rule'));
+    copy.querySelectorAll('.active-state, .active-rule, .edit-selected, .editable').forEach(node => {node.classList.remove('active-state', 'active-rule', 'edit-selected', 'editable'); node.removeAttribute('tabindex'); node.removeAttribute('role'); node.removeAttribute('aria-label');});
     downloadBlob(new Blob([new XMLSerializer().serializeToString(copy)], {type: 'image/svg+xml'}), `${machine.filename}.svg`);
   }
   return <section className={`graph-panel panel ${expanded ? 'expanded' : ''}`} id="graph-panel" aria-label="State graph">

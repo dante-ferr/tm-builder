@@ -55,6 +55,14 @@ Git repository for your group. Initialize Git there and add a shared remote, or
 point `TM_BUILDER_WORKSPACE` at an existing clone. The viewer starts with a
 machine picker; CLI commands that need a machine default to `copy.yaml`.
 
+Edit a loaded machine directly in the web UI. Use **+ State** to add states,
+select a state to rename it or change its role, and use **Transition tool** to
+select a source and destination before entering read/write/move for each tape.
+Select an edge to edit or delete its individual rules. **Machine settings** edits
+the model, alphabets, blank, and tape count. Applying an edit validates and saves
+the workspace YAML and refreshes the graph. Imported files stay in memory; use
+**Download YAML** to keep their changes. Save unsaved VS Code buffers before UI edits.
+
 ## Examples
 
 Bundled examples live in `data/examples/` and are copied to a new workspace.
@@ -67,6 +75,24 @@ Bundled examples live in `data/examples/` and are copied to a new workspace.
 | [blank_writer](data/examples/machines/blank_writer.yaml) | Empty input alphabet | — |
 | [halt](data/examples/machines/halt.yaml) | Custom blank and terminal states | — |
 | [loop](data/examples/machines/loop.yaml) | Self-loop and step limits | — |
+| [binary_counter](data/examples/machines/binary_counter.yaml) | Exponential binary counting and long traces | [8,190 steps](data/examples/inputs/binary_counter.yaml), [1,000,000 steps](data/examples/inputs/binary_counter_million.yaml) |
+
+Selecting the binary counter loads the million-step input. Allow at least 1,000,000
+steps and choose **As quick as possible** to skip playback delays. Execution runs
+on a background request thread; browser workers load and index long traces and
+handle instant playback, including breakpoints. Compact rule histories preserve
+every step for free backward and forward timeline seeking.
+
+The UI benchmarks this computer when the server starts being used and estimates a
+default step budget of roughly five seconds. The step limit is editable, up to
+10,000,000; actual runtime depends on the machine and input. Short computations
+halt earlier. The CLI retains its explicit `--max-steps` option (default 1000).
+Nondeterministic search also retains its 10,000-configuration bound.
+
+Valid machines can run forever (see `loop.yaml`). The checker validates syntax and
+machine structure; it cannot solve the general halting problem. Reaching a step or
+search limit reports **Limit reached** (`RUNNING`), never a rejection or proof of
+an infinite computation. There is no unbounded execution mode.
 
 ## YAML
 

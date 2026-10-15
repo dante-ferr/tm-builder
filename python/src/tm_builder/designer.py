@@ -10,14 +10,17 @@ from pathlib import Path
 import shutil
 import subprocess
 import threading
+import tempfile
 import time
 from urllib.parse import parse_qs, unquote, urlparse
 import webbrowser
 
 from tm_builder.definition import DefinitionError, parse_definition
+from tm_builder.editing import edit_yaml
 from tm_builder.diagram import machine_diagram
 from tm_builder.inputs import parse_inputs
 from tm_builder.simulation import simulate
+from tm_builder.execution_limits import execution_limits
 from tm_builder.workspace import INPUT_EXAMPLES, MACHINE_EXAMPLES, ensure_workspace
 
 PROJECT = Path(__file__).resolve().parents[3]
@@ -124,11 +127,41 @@ class DiagramSource:
             self.definition = definition
             result.update(valid=True, name=definition.name, dot=machine_diagram(definition).source,
                           model=definition.model, tapes=definition.tapes, states=definition.states,
+                          source=source, definition=definition.model_dump(by_alias=True, mode='json', exclude_none=True),
                           diagnostics=[asdict(d) for d in warnings])
         except DefinitionError as error:
             result.update(valid=False, diagnostics=[asdict(d) for d in error.diagnostics])
         self.cache = result
         return result
+
+    def edit(self, data):
+        """Validate and save an edit only against the exact displayed revision."""
+        with self.lock:
+            current = self.snapshot()
+            if not current['valid'] or data.get('revision') != current['revision']:
+                raise ValueError('Machine changed. Review the latest machine and retry your edit.')
+            if current['mode'] == 'Unsaved VS Code buffer':
+                raise ValueError('Save your VS Code changes before editing in the UI.')
+            updated = edit_yaml(current['source'], data.get('changes'))
+            if self.imported:
+                self.imported = (self.imported[0], updated)
+            else:
+                if self.path.read_text() != current['source']:
+                    raise ValueError('Machine changed on disk. Review it and retry your edit.')
+                temporary = None
+                try:
+                    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8',
+                                                     dir=self.path.parent, delete=False) as file:
+                        temporary = Path(file.name)
+                        file.write(updated)
+                    temporary.chmod(self.path.stat().st_mode & 0o777)
+                    temporary.replace(self.path)
+                finally:
+                    if temporary and temporary.exists():
+                        temporary.unlink()
+            self.buffer = None
+            self.cache = None
+            return self.snapshot()
 
     def simulation(self, data):
         with self.lock:
@@ -140,9 +173,13 @@ class DiagramSource:
             setup_text = data.get('setup', 'tapes: []')
             if not isinstance(setup_text, str):
                 raise ValueError('Expected starting tape YAML as a string.')
-            setup = parse_inputs(setup_text, self.definition)
-            result = simulate(self.definition, max_steps=data.get('max_steps', 1000), setup=setup)
-            return {**result, 'revision': current['revision'], 'model': self.definition.model}
+            definition = self.definition.model_copy(deep=True)
+            revision = current['revision']
+        # Each HTTP request already runs on its own thread. Keep execution outside
+        # the source lock so polling, edits, and machine selection stay responsive.
+        setup = parse_inputs(setup_text, definition)
+        result = simulate(definition, max_steps=data.get('max_steps', 1000), setup=setup)
+        return {**result, 'revision': revision, 'model': definition.model}
 
     def export(self, data):
         from tm_builder.web_export import export_download
@@ -213,6 +250,8 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
                     self.respond({'source': library_path('inputs', filename).read_text()})
                 elif route == '/api/diagram':
                     self.respond(source.snapshot())
+                elif route == '/api/limits':
+                    self.respond(execution_limits())
                 else:
                     self.serve_static(route)
             except (OSError, ValueError, RecursionError) as error:
@@ -263,7 +302,7 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
         def do_POST(self):
             if not self.local_request():
                 return
-            if self.path not in ('/api/buffer', '/api/simulate', '/api/machine', '/api/export'):
+            if self.path not in ('/api/buffer', '/api/simulate', '/api/machine', '/api/export', '/api/edit'):
                 self.respond({'error': 'Not found'}, 404)
                 return
             try:
@@ -273,6 +312,9 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
                 data = json.loads(self.rfile.read(size))
                 if not isinstance(data, dict):
                     raise ValueError('Expected a JSON object')
+                if self.path == '/api/edit':
+                    self.respond(source.edit(data))
+                    return
                 if self.path == '/api/export':
                     body, mime, filename = source.export(data)
                     self.respond(body, mime=mime, filename=filename)

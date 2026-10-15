@@ -1,0 +1,25 @@
+# Count upward until an n-bit binary counter overflows: exponentially many steps.
+# binary_counter.yaml input: 8,190 steps; binary_counter_million.yaml: 1,000,000.
+name: Binary counter stress test
+model: deterministic
+tapes: 1
+blank: _
+input_alphabet: ["0", "1"]
+tape_alphabet: ["0", "1", _]
+states: [seek_end, increment, return_right, accept]
+start: seek_end
+accept: [accept]
+reject: []
+transitions:
+  seek_end:
+    - {tapes: [["0", "0", R]], to: seek_end}
+    - {tapes: [["1", "1", R]], to: seek_end}
+    - {tapes: [[_, _, L]], to: increment}
+  increment:
+    - {tapes: [["1", "0", L]], to: increment}
+    - {tapes: [["0", "1", R]], to: return_right}
+    - {tapes: [[_, _, S]], to: accept}
+  return_right:
+    - {tapes: [["0", "0", R]], to: return_right}
+    - {tapes: [["1", "1", R]], to: return_right}
+    - {tapes: [[_, _, L]], to: increment}

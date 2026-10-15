@@ -117,11 +117,11 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .trace-badge { font-size: 9px; color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; white-space: nowrap; }
 .trace-badge.accept { color: var(--accent); background: var(--accent-soft); }
 .trace-badge.reject { color: var(--reject); }
-.playback-controls { display: flex; align-items: center; gap: 16px; padding: 13px 18px 6px; }
+.playback-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 13px 18px 6px; }
 .transport { display: flex; align-items: center; gap: 6px; }
 .play-button { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--brand-border); min-height: 30px; min-width: 77px; padding: 6px 11px; font-size: 11px; }
 .speed-label { flex-direction: row; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
-.speed-label select { width: 53px; padding: 6px; font-size: 10px; }
+.speed-label select { width: auto; min-width: 155px; padding: 6px; font-size: 10px; }
 .step-counter { margin-left: auto; font: 10px ui-monospace, monospace; white-space: nowrap; }
 .step-counter > span { color: var(--muted); }
 .timeline { padding: 6px 18px 10px; }
@@ -143,7 +143,7 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .cell + .cell { margin-left: -1px; }
 .cell small { display: block; font: 8px ui-monospace, monospace; color: var(--muted); margin-top: 7px; }
 .cell.head { position: relative; border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 2px var(--accent); }
-.cell.written { background: #f6edc7; color: #6e5724; }
+.cell.written { background: var(--written-fill); color: var(--written-text); }
 .rule-details { font: 10px/1.7 ui-monospace, monospace; color: var(--muted); white-space: pre-wrap; margin: 9px 0 0; }
 .breakpoints { border-top: 1px solid var(--line); padding: 11px 18px; }
 .breakpoints summary { color: var(--muted); font-size: 10px; cursor: pointer; }
@@ -219,3 +219,23 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
   .export-grid { gap: 0 12px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+
+.machine-tools { flex-shrink: 0; padding: 12px 16px; }
+.edit-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.edit-tools button { font-size: 11px; }
+.edit-tools button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.machine-tools > p { font-size: 11px; line-height: 1.7; color: var(--muted); margin: 10px 0 0; }
+.editor-graph { display: flex; flex-direction: column; flex: 1; min-height: 330px; }
+.transition-list { flex-shrink: 0; padding: 12px 16px; max-height: 280px; overflow: auto; }
+.transition-list summary { cursor: pointer; font-size: 12px; }
+.state-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 0; }
+.rule-row { display: flex; align-items: center; text-align: left; width: 100%; gap: 14px; margin: 6px 0; }
+.rule-row code { flex: 1; overflow-wrap: anywhere; }
+.rule-row span { color: var(--accent); }
+.tape-action { display: grid; grid-template-columns: 55px repeat(3, minmax(0, 1fr)); gap: 10px; align-items: center; }
+.tape-action strong { font-size: 11px; }
+#graph .editable { cursor: pointer; }
+#graph .node.edit-selected ellipse, #graph .node.editable:focus ellipse { stroke: var(--accent); stroke-width: 4; }
+#graph .edge.editable:hover path, #graph .edge.editable:focus path { stroke: var(--accent); stroke-width: 3; }
+#graph .node.editable:hover ellipse { stroke-width: 3; }
+.machine-edit-dialog { max-height: 85dvh; }

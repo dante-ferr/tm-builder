@@ -34,6 +34,20 @@ buffers. Requests are aborted on unmount, and selection/input/trace generations
 reject outdated results. Simulation and exports use the diagram revision so
 results match the selected machine. Traces include initial and subsequent tape
 configurations, applied rules, and a final execution status and stop reason.
+Runs above 10,000 requested steps use initial sparse tapes and a sequence of rule
+indices instead of a full snapshot per step. The simulation worker fetches this
+recording and builds head positions and per-cell write histories. Visible tape
+windows are recovered with binary search, so arbitrary seeks do not replay the
+whole run. Instant playback scans rule/state metadata on another worker and keeps
+the full history. Changing inputs or selecting a machine disposes the old client
+worker; the bounded server request can finish independently.
+
+`GET /api/limits` benchmarks three 50,000-step counter runs on the API computer,
+caches the median speed for that server process, and returns a five-second estimate
+and a 10,000,000-step maximum. This estimates simulation time; network transfer and
+browser indexing add overhead. Users can edit the limit and machine selection
+preserves their choice. Nondeterministic searches retain a separate configuration
+limit; all bounded incomplete results remain `RUNNING`.
 
 The library lists workspace `machines/` and `inputs/` YAML files. Bundled examples
 are identified by the explicit `.gitignore` allowlist in `data/examples/`.
@@ -50,3 +64,23 @@ Export table supports CSV, PNG, and LaTeX, readable/formal styles, language,
 layout, and DPI. An independent imported machine can be exported without changing
 the selected diagram. The Python server validates each request and returns a file
 or a ZIP of numbered A4 pieces.
+
+## Machine editing
+
+The editor saves validated changes through `POST /api/edit`, passing the displayed
+revision and changed definition fields. File edits use an atomic replacement;
+stale revisions and unsaved IDE buffers are rejected. Imported machines are edited
+in memory and can be downloaded as YAML. Applying any edit clears the old trace.
+Unchanged top-level YAML fields retain their source text; changed fields are
+serialized again. Comments inside changed fields are not retained. Grouped transitions remain
+grouped. No schema or machine syntax changes are required.
+
+Select / edit opens state properties or the rules for an edge. Transition tool
+selects a source, then a destination (including self-loops), then opens one
+read/write/move row per tape. The expandable states and transitions list offers
+the same operations without targeting the diagram. Graph states and edges also
+support keyboard activation with Enter or Space. Escape cancels source selection.
+State renames update references; state deletion removes connected rules and
+requires choosing another start state first. Machine settings supports model,
+name, alphabets, blank, and tape count; tape count changes resize all rule actions
+and any embedded inputs. Invalid combinations leave the YAML untouched.

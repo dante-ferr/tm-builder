@@ -49,3 +49,30 @@ class ExampleTests(unittest.TestCase):
         looping = simulate(self.load('loop.yaml'), max_steps=3)
         self.assertEqual(looping['status'], 'RUNNING')
         self.assertEqual(looping['configuration']['step'], 3)
+
+    def test_binary_counter_stress_trace(self):
+        definition = self.load('binary_counter.yaml')
+        setup = self.setup('binary_counter.yaml', definition)
+        result = simulate(definition, setup=setup, max_steps=10000)
+        self.assertEqual(result['status'], 'ACCEPT')
+        self.assertEqual(result['configuration']['step'], 8190)
+        self.assertEqual(len(result['frames']), 8191)
+        self.assertEqual([frame['step'] for frame in result['frames']], list(range(8191)))
+        for index in (8190, 4095, 0, 7000, 12, 1):
+            self.assertEqual(result['frames'][index]['step'], index)
+        machine = definition.create_machine(setup=setup)
+        self.assertEqual(machine.run(max_steps=10000), 'ACCEPT')
+        self.assertEqual([machine.tapes[0].cells.get(i) for i in range(11)], ['0'] * 11)
+        bounded = simulate(definition, setup=setup, max_steps=1000)
+        self.assertEqual(bounded['status'], 'RUNNING')
+        self.assertEqual(len(bounded['frames']), 1001)
+
+    def test_million_step_counter(self):
+        definition = self.load('binary_counter.yaml')
+        setup = self.setup('binary_counter_million.yaml', definition)
+        result = simulate(definition, setup=setup, max_steps=1_000_000)
+        self.assertEqual(result['status'], 'ACCEPT')
+        self.assertEqual(result['configuration']['step'], 1_000_000)
+        self.assertEqual(len(result['recording']['steps']), 1_000_000)
+        self.assertEqual(result['frames'], [])
+        self.assertEqual(result['recording']['rules'][result['recording']['steps'][-1]]['to'], 'accept')

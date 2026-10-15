@@ -3,7 +3,7 @@ import {useWorkspace} from '../hooks/use-workspace';
 import {usePlayback} from '../hooks/use-playback';
 import {useTheme} from '../hooks/use-theme';
 import {LibraryPanel} from './library-panel';
-import {StateGraph} from './state-graph';
+import {MachineEditor} from './machine-editor';
 import {PlaybackPanel} from './playback-panel';
 import {ExportDialog} from './export-dialog';
 import {Icon} from './icon';
@@ -22,7 +22,7 @@ export default function MachineWorkspace() {
       <div className="workspace-content">
         {w.error && <div className="error-banner" role="alert">{w.error}</div>}
         {w.diagram && !w.diagram.valid && w.diagram.revision !== 'unselected' && <div className="error-banner" role="alert">{w.diagram.diagnostics.map((diagnostic, index) => <div key={index}>Line {diagnostic.line}:{diagnostic.column} · {diagnostic.message}</div>)}</div>}
-        <StateGraph machine={w.selecting ? null : w.machine} playback={playback} />
+        <MachineEditor workspace={w} playback={playback} />
         <PlaybackPanel trace={w.trace} machine={w.machine} message={w.message} playback={playback} />
       </div>
       <footer className="workspace-footer"><span><span className={`connection-dot ${w.connected ? 'connected' : ''}`} />{w.machine ? w.machine.mode : w.connected ? 'Workspace ready' : 'Connecting…'}</span><span>Transitions <code>read → write, move</code><span className="footer-divider">/</span><code>|</code> separates tapes</span></footer>

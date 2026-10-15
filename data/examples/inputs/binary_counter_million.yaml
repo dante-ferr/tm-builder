@@ -1,0 +1,4 @@
+# This 18-bit counter starts at 12148 and accepts after exactly 1,000,000 steps.
+# Select binary_counter.yaml and allow at least 1,000,000 steps.
+tapes:
+  - contents: "000010111101110100"

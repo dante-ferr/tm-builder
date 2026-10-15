@@ -10,8 +10,9 @@ import sys
 PROJECT = Path(__file__).resolve().parents[3]
 EXAMPLES = PROJECT / "data" / "examples"
 MACHINE_EXAMPLES = ("copy.yaml", "single_tape.yaml", "nondeterministic_contains_one.yaml",
-                   "blank_writer.yaml", "halt.yaml", "loop.yaml")
-INPUT_EXAMPLES = ("copy.yaml", "binary.yaml", "copy_preloaded.yaml")
+                   "blank_writer.yaml", "halt.yaml", "loop.yaml", "binary_counter.yaml")
+INPUT_EXAMPLES = ("copy.yaml", "binary.yaml", "copy_preloaded.yaml", "binary_counter.yaml",
+                  "binary_counter_million.yaml")
 
 
 def workspace_path() -> Path:

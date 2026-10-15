@@ -28,10 +28,13 @@ web/public/assets/
 !/data/examples/machines/blank_writer.yaml
 !/data/examples/machines/halt.yaml
 !/data/examples/machines/loop.yaml
+!/data/examples/machines/binary_counter.yaml
 /data/examples/inputs/*
 !/data/examples/inputs/copy.yaml
 !/data/examples/inputs/binary.yaml
 !/data/examples/inputs/copy_preloaded.yaml
+!/data/examples/inputs/binary_counter.yaml
+!/data/examples/inputs/binary_counter_million.yaml
 
 # Next.js build output
 /web/.next/
