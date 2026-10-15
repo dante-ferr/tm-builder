@@ -43,6 +43,21 @@ class ViewerAssetTests(unittest.TestCase):
                         run.reset_mock()
                         os.utime(web / source, ns=(1_000_000_000, 1_000_000_000))
 
+    def test_built_outputs_do_not_need_npm_when_sources_are_absent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            web = Path(directory)
+            for name in ('out/index.html', 'public/assets/render.cjs'):
+                path = web / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('built')
+            with (patch('tm_builder.designer.WEB_PROJECT', web),
+                  patch('tm_builder.designer.WEB', web / 'public'),
+                  patch('tm_builder.designer.WEB_OUT', web / 'out'),
+                  patch('tm_builder.designer.shutil.which', return_value=None),
+                  patch('tm_builder.designer.subprocess.run') as run):
+                ensure_assets()
+                run.assert_not_called()
+
 
 class IDEViewerTests(unittest.TestCase):
     def test_grouped_diagnostics_point_to_original_yaml(self):

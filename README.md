@@ -19,6 +19,9 @@ command is available. Open the configured workspace with:
 make open-workspace
 ```
 
+The viewer header **Open workspace folder** button runs that same command after
+the current machine file has been written.
+
 Machine files under `machines/` then get syntax, schema, and type diagnostics.
 If the VS Code CLI is not on `PATH`, pass its executable to both commands, for
 example `make setup CODE=/path/to/code` and

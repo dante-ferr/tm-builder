@@ -47,9 +47,10 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command in (None, "design", "view"):
-            from tm_builder.designer import serve
-            serve(getattr(args, "machine", None),
-                  getattr(args, "port", 8765), not getattr(args, "no_open", False))
+            from tm_builder.designer import serve, viewer_listen
+            _host, port, open_browser = viewer_listen(
+                getattr(args, "port", 8765), not getattr(args, "no_open", False))
+            serve(getattr(args, "machine", None), port, open_browser)
         elif args.command == "schema":
             target = Path(args.output or f"schemas/{args.kind}.schema.json")
             target.parent.mkdir(parents=True, exist_ok=True)

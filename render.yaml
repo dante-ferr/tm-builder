@@ -1,0 +1,9 @@
+# Render injects PORT and RENDER_EXTERNAL_URL. Do not set them here.
+services:
+  - type: web
+    name: tm-builder
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/library

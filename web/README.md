@@ -110,6 +110,10 @@ rather than overwrite another editor's work. Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, and
 matching Cmd shortcuts work outside editable inputs, with icon buttons in the
 graph toolbar as well.
 
+**Open workspace folder** in the viewer header calls `POST /api/open-workspace`.
+The API waits until any in-progress machine write finishes, then runs
+`make open-workspace`, which opens the VS Code workspace for the user folder.
+
 New machine (+) in the library opens a name and filename form. `POST /api/create`
 creates a valid one-state deterministic machine in the workspace's `machines/`
 folder, then selects it. Creation refuses directory traversal, symlinks, existing

@@ -1,14 +1,15 @@
 """Folder libraries, imported machines, and viewer HTTP regression checks."""
 from http.client import HTTPConnection
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from tm_builder.cli import main
-from tm_builder.designer import DiagramSource, create_server, library_files
+from tm_builder.designer import DiagramSource, create_server, library_files, serve
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = (ROOT / 'data/examples/machines/copy.yaml').read_text()
@@ -145,6 +146,7 @@ class LibraryTests(unittest.TestCase):
 
     def test_http_accepts_only_configured_dev_origin_with_backend_host(self):
         with patch.dict('os.environ', {'TM_BUILDER_DEV_ORIGIN': 'http://127.0.0.1:3000'}):
+            os.environ.pop('RENDER_EXTERNAL_URL', None)
             server = create_server(port=0)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
@@ -171,8 +173,155 @@ class LibraryTests(unittest.TestCase):
                 wrong_host = connection.getresponse()
                 self.assertEqual(wrong_host.status, 403)
                 wrong_host.read()
+                connection.request('GET', '/api/library', headers={
+                    'Host': f'127.0.0.1:{server.server_port}',
+                })
+                local = connection.getresponse()
+                self.assertEqual(local.status, 200)
+                local.read()
+                connection.request('GET', '/api/library', headers={'Host': 'evil.example'})
+                foreign_host = connection.getresponse()
+                self.assertEqual(foreign_host.status, 403)
+                foreign_host.read()
+                self.assertEqual(server.server_address[0], '127.0.0.1')
             finally:
                 connection.close()
                 server.shutdown()
                 server.server_close()
                 thread.join()
+
+    def test_http_render_host_is_allowlisted_without_opening_other_hosts(self):
+        public = 'https://TM-Builder.OnRender.com'
+        with patch.dict('os.environ', {
+            'RENDER_EXTERNAL_URL': public,
+            'TM_BUILDER_DEV_ORIGIN': 'http://127.0.0.1:3000',
+        }):
+            os.environ.pop('PORT', None)
+            server = create_server(port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = HTTPConnection('127.0.0.1', server.server_port)
+            host = 'tm-builder.onrender.com'
+            try:
+                self.assertEqual(server.server_address[0], '0.0.0.0')
+
+                def status(headers):
+                    connection.request('GET', '/api/library', headers=headers)
+                    response = connection.getresponse()
+                    response.read()
+                    return response.status
+
+                self.assertEqual(status({
+                    'Host': host,
+                    'Origin': 'https://tm-builder.onrender.com',
+                }), 200)
+                self.assertEqual(status({
+                    'Host': 'TM-Builder.OnRender.com',
+                    'Origin': 'https://TM-Builder.OnRender.com',
+                }), 200)
+                self.assertEqual(status({'Host': host}), 200)
+                self.assertEqual(status({'Host': f'{host}:443'}), 200)
+                self.assertEqual(status({'Host': 'other.example', 'Origin': 'https://other.example'}), 403)
+                self.assertEqual(status({
+                    'Host': host,
+                    'Origin': 'http://127.0.0.1:3000',
+                }), 403)
+            finally:
+                connection.close()
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+        with patch.dict('os.environ', {'RENDER_EXTERNAL_URL': 'https://preview.example:8443'}):
+            os.environ.pop('PORT', None)
+            server = create_server(port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = HTTPConnection('127.0.0.1', server.server_port)
+            try:
+                def status(headers):
+                    connection.request('GET', '/api/library', headers=headers)
+                    response = connection.getresponse()
+                    response.read()
+                    return response.status
+
+                self.assertEqual(status({
+                    'Host': 'preview.example',
+                    'Origin': 'https://preview.example:8443',
+                }), 200)
+                self.assertEqual(status({'Host': 'preview.example:8443'}), 200)
+                self.assertEqual(status({
+                    'Host': 'preview.example',
+                    'Origin': 'https://preview.example',
+                }), 403)
+                self.assertEqual(status({'Host': 'preview.example:443'}), 403)
+            finally:
+                connection.close()
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def _stopped_server(self):
+        server = Mock()
+        server.serve_forever.side_effect = KeyboardInterrupt
+        return server
+
+    def test_local_serve_keeps_cli_port_and_browser(self):
+        server = self._stopped_server()
+        server.server_port = 8765
+        with patch.dict('os.environ', {'PORT': '10000'}, clear=False):
+            os.environ.pop('RENDER_EXTERNAL_URL', None)
+            with (patch('tm_builder.designer.ensure_assets'),
+                  patch('tm_builder.designer.ensure_workspace', return_value=ROOT),
+                  patch('tm_builder.designer.create_server', return_value=server) as created,
+                  patch('tm_builder.designer.threading.Timer') as timer):
+                serve(None, 8765, True)
+        created.assert_called_once_with(None, 8765, ROOT)
+        timer.assert_called_once()
+        self.assertEqual(timer.call_args.args[0], .3)
+
+    def test_render_serve_prefers_port_env_and_skips_browser(self):
+        server = self._stopped_server()
+        server.server_port = 10000
+        with patch.dict('os.environ', {
+            'RENDER_EXTERNAL_URL': 'https://tm-builder.onrender.com',
+            'PORT': '10000',
+        }):
+            with (patch('tm_builder.designer.ensure_assets'),
+                  patch('tm_builder.designer.ensure_workspace', return_value=ROOT),
+                  patch('tm_builder.designer.create_server', return_value=server) as created,
+                  patch('tm_builder.designer.threading.Timer') as timer):
+                serve(None, 9000, True)
+        created.assert_called_once_with(None, 10000, ROOT)
+        timer.assert_not_called()
+
+    def test_render_cli_port_is_used_when_port_env_is_absent(self):
+        server = self._stopped_server()
+        server.server_port = 9000
+        with patch.dict('os.environ', {'RENDER_EXTERNAL_URL': 'https://tm-builder.onrender.com'}):
+            os.environ.pop('PORT', None)
+            with (patch('tm_builder.designer.ensure_assets'),
+                  patch('tm_builder.designer.ensure_workspace', return_value=ROOT),
+                  patch('tm_builder.designer.create_server', return_value=server) as created,
+                  patch('tm_builder.designer.threading.Timer') as timer):
+                serve(None, 9000, True)
+        created.assert_called_once_with(None, 9000, ROOT)
+        timer.assert_not_called()
+
+    def test_cli_render_port_overrides_explicit_port_and_skips_browser(self):
+        with patch.dict('os.environ', {
+            'RENDER_EXTERNAL_URL': 'https://tm-builder.onrender.com',
+            'PORT': '10000',
+        }):
+            with patch('sys.argv', ['tm-builder', 'view', '--port', '9000']), \
+                    patch('tm_builder.designer.serve') as serve_mock:
+                main()
+        self.assertEqual(serve_mock.call_args.args, (None, 10000, False))
+
+    def test_cli_local_port_ignores_port_env(self):
+        with patch.dict('os.environ', {'PORT': '10000'}, clear=False):
+            os.environ.pop('RENDER_EXTERNAL_URL', None)
+            with patch('sys.argv', ['tm-builder', 'view', '--port', '9000', '--no-open']), \
+                    patch('tm_builder.designer.serve') as serve_mock:
+                main()
+        self.assertEqual(serve_mock.call_args.args, (None, 9000, False))

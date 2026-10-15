@@ -21,7 +21,7 @@ from tm_builder.diagram import machine_diagram
 from tm_builder.inputs import parse_inputs
 from tm_builder.simulation import simulate
 from tm_builder.execution_limits import execution_limits
-from tm_builder.workspace import INPUT_EXAMPLES, MACHINE_EXAMPLES, ensure_workspace
+from tm_builder.workspace import INPUT_EXAMPLES, MACHINE_EXAMPLES, ensure_workspace, open_in_editor
 
 PROJECT = Path(__file__).resolve().parents[3]
 WEB_PROJECT = PROJECT / 'web'
@@ -230,6 +230,13 @@ class DiagramSource:
             self.select(target)
             return self.snapshot()
 
+    def open_workspace(self):
+        """Wait for an in-progress disk write, then open the workspace in VS Code."""
+        self.lock.acquire()
+        self.lock.release()
+        open_in_editor()
+        return {'opened': True}
+
     def simulation(self, data):
         with self.lock:
             current = self.snapshot()
@@ -267,6 +274,58 @@ class DiagramSource:
         return export_download(definition, filename, data, PROJECT)
 
 
+def _render_url():
+    return os.environ.get('RENDER_EXTERNAL_URL', '').strip()
+
+
+def viewer_listen(port, open_browser=True):
+    """Choose the bind address, port, and whether to open a browser.
+
+    Local runs keep the requested port and bind to loopback. When Render sets
+    RENDER_EXTERNAL_URL, its PORT value wins over an explicit port so the
+    process matches the proxy, and the browser is left closed.
+    """
+    if not _render_url():
+        return '127.0.0.1', port, open_browser
+    raw = os.environ.get('PORT')
+    if raw is not None and str(raw).strip() != '':
+        port = int(str(raw).strip())
+    return '0.0.0.0', port, False
+
+
+def _render_allowance():
+    """Return the public hosts and origin Render is allowed to send."""
+    raw = _render_url()
+    if not raw:
+        return None
+    parsed = urlparse(raw)
+    hostname = (parsed.hostname or '').lower()
+    if parsed.scheme not in ('http', 'https') or not hostname:
+        return None
+    default_port = 443 if parsed.scheme == 'https' else 80
+    explicit = parsed.port
+    hosts = {hostname, f'{hostname}:{explicit or default_port}'}
+    if explicit not in (None, default_port):
+        origin = f'{parsed.scheme}://{hostname}:{explicit}'
+    else:
+        origin = f'{parsed.scheme}://{hostname}'
+    return hosts, origin
+
+
+def _origin_matches(header, expected):
+    if header is None:
+        return True
+    got = urlparse(header)
+    expected_parts = urlparse(expected)
+    if got.scheme != expected_parts.scheme or (got.hostname or '').lower() != (expected_parts.hostname or '').lower():
+        return False
+    if got.port != expected_parts.port:
+        return False
+    if got.username or got.password or got.query or got.fragment or got.path not in ('',):
+        return False
+    return True
+
+
 def create_server(machine_path: Path | None = None, port=8765, workspace: Path | None = None):
     workspace = workspace or ensure_workspace()
     if machine_path is not None and not machine_path.exists() and not machine_path.is_absolute():
@@ -295,15 +354,25 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
             self.wfile.write(body)
 
         def local_request(self):
-            host = f'127.0.0.1:{self.server.server_port}'
-            allowed_origins = {f'http://{host}'}
-            dev_origin = os.environ.get('TM_BUILDER_DEV_ORIGIN')
-            if dev_origin:
-                allowed_origins.add(dev_origin)
-            if self.headers.get('Host') != host or self.headers.get('Origin', f'http://{host}') not in allowed_origins:
-                self.respond({'error': 'Invalid host or origin'}, 403)
-                return False
-            return True
+            local_host = f'127.0.0.1:{self.server.server_port}'
+            request_host = self.headers.get('Host')
+            # Loopback clients keep the original host and origin rules, including
+            # TM_BUILDER_DEV_ORIGIN. The peer address has to be loopback, so a
+            # public client cannot pass by sending Host: 127.0.0.1.
+            if self.client_address[0] in ('127.0.0.1', '::1') and request_host == local_host:
+                allowed_origins = {f'http://{local_host}'}
+                dev_origin = os.environ.get('TM_BUILDER_DEV_ORIGIN')
+                if dev_origin:
+                    allowed_origins.add(dev_origin)
+                if self.headers.get('Origin', f'http://{local_host}') in allowed_origins:
+                    return True
+            else:
+                allowance = _render_allowance()
+                if (allowance and request_host and request_host.strip().lower() in allowance[0]
+                        and _origin_matches(self.headers.get('Origin'), allowance[1])):
+                    return True
+            self.respond({'error': 'Invalid host or origin'}, 403)
+            return False
 
         def do_GET(self):
             if not self.local_request():
@@ -369,7 +438,7 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
         def do_POST(self):
             if not self.local_request():
                 return
-            if self.path not in ('/api/buffer', '/api/simulate', '/api/machine', '/api/export', '/api/edit', '/api/history', '/api/create'):
+            if self.path not in ('/api/buffer', '/api/simulate', '/api/machine', '/api/export', '/api/edit', '/api/history', '/api/create', '/api/open-workspace'):
                 self.respond({'error': 'Not found'}, 404)
                 return
             try:
@@ -384,6 +453,9 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
                     return
                 if self.path == '/api/create':
                     self.respond(source.create(data, workspace))
+                    return
+                if self.path == '/api/open-workspace':
+                    self.respond(source.open_workspace())
                     return
                 if self.path == '/api/edit':
                     self.respond(source.edit(data))
@@ -413,7 +485,8 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
             except (ValueError, OSError, RuntimeError) as error:
                 self.respond({'error': str(error)}, 400)
 
-    return ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    bind_host = '0.0.0.0' if _render_url() else '127.0.0.1'
+    return ThreadingHTTPServer((bind_host, port), Handler)
 
 
 def serve(machine_path: Path | None = None, port=8765, open_browser=True):
@@ -423,11 +496,18 @@ def serve(machine_path: Path | None = None, port=8765, open_browser=True):
     if not os.environ.get('TM_BUILDER_DEV_ORIGIN'):
         ensure_assets()
     workspace = ensure_workspace()
+    _bind_host, port, open_browser = viewer_listen(port, open_browser)
+    public = _render_url()
     server = create_server(machine_path, port, workspace)
-    url = f'http://127.0.0.1:{server.server_port}'
-    print(f'Diagram: {url}\nWorkspace: {workspace}\nWatching: {machine_path or workspace / "machines"}\nPress Ctrl+C to stop.', flush=True)
-    if open_browser:
-        threading.Timer(.3, lambda: webbrowser.open(url)).start()
+    if public:
+        print(f'Diagram: {public}\nListening: 0.0.0.0:{server.server_port}\n'
+              f'Workspace: {workspace}\nWatching: {machine_path or workspace / "machines"}\n'
+              f'Press Ctrl+C to stop.', flush=True)
+    else:
+        url = f'http://127.0.0.1:{server.server_port}'
+        print(f'Diagram: {url}\nWorkspace: {workspace}\nWatching: {machine_path or workspace / "machines"}\nPress Ctrl+C to stop.', flush=True)
+        if open_browser:
+            threading.Timer(.3, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

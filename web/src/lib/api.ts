@@ -24,6 +24,7 @@ export const api = {
   create: (name: string, filename: string, signal: AbortSignal) => json<Diagram>('create', signal, {name, filename}),
   edit: (revision: string, changes: Partial<MachineDefinition>, signal: AbortSignal) => json<Diagram>('edit', signal, {revision, changes}),
   library: (signal: AbortSignal) => json<Library>('library', signal),
+  openWorkspace: (signal: AbortSignal) => json<{opened: boolean}>('open-workspace', signal, {}),
   selectMachine: (source: MachineSource, signal: AbortSignal) => json<Diagram>('machine', signal, source),
   input: (filename: string, signal: AbortSignal) => json<{source: string}>(`input?filename=${encodeURIComponent(filename)}`, signal),
   simulate: (revision: string, setup: string, max_steps: number, signal: AbortSignal) => new Promise<Trace>((resolve, reject) => {

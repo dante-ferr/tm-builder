@@ -24,6 +24,7 @@ export function useWorkspace() {
   const [selecting, setSelecting] = useState(false);
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [historyGeneration, setHistoryGeneration] = useState(0);
   const lifetime = useRef<AbortController | null>(null);
   const activeRun = useRef<AbortController | null>(null);
@@ -181,6 +182,14 @@ export function useWorkspace() {
       else if (token === inputRequest.current) changeSetup(source);
     } catch (error) { setError(errorMessage(error)); }
   }
+  async function openWorkspace() {
+    if (!lifetime.current || !connected || saving || opening || selectionBusy.current) return;
+    setOpening(true); setError('');
+    try {
+      await api.openWorkspace(lifetime.current.signal);
+    } catch (error) { if (!lifetime.current.signal.aborted) setError(errorMessage(error)); }
+    finally { setOpening(false); }
+  }
   async function run() {
     if (!diagram?.valid || !lifetime.current || selectionBusy.current) return;
     if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > maximumSteps) {
@@ -201,7 +210,7 @@ export function useWorkspace() {
   }
   return {
     diagram, machine: diagram?.valid ? diagram : null, library, setup, input, maxSteps, maximumSteps, trace, message, error: error || connectionError || libraryError,
-    connected, selecting, running, saving, historyGeneration, changeHistory, createMachine, editMachine, selectMachine, selectInput, changeSetup, importFile, run,
+    connected, selecting, running, saving, opening, historyGeneration, changeHistory, createMachine, editMachine, selectMachine, selectInput, changeSetup, importFile, openWorkspace, run,
     changeMaxSteps: (value: number) => {
       customLimit.current = true; setMaxSteps(value);
       clearTrace('Step limit changed. Load a new trace.');

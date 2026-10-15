@@ -19,7 +19,7 @@ export default function MachineWorkspace() {
     <LibraryPanel workspace={w} />
     <main className="workspace-main" id="workspace">
       <header className="workspace-header"><div><div className="breadcrumb">Workspace <span>/</span> <strong>Machine explorer</strong></div><h1>{w.machine?.name || 'Machine explorer'}</h1><p className="workspace-description">{w.machine ? <><span className="model-badge">{w.machine.model}</span><span className="machine-path" title={w.machine.path}>{w.machine.path.split('/').pop()}</span></> : 'Build intuition. Follow every transition.'}</p></div>
-        <div className="header-actions"><button className="theme-button" onClick={cycleTheme} aria-label={`Theme: ${theme}. Click to change theme.`} title={`Theme: ${theme}`}><Icon name="sun" size={16} /><span>{theme[0].toUpperCase() + theme.slice(1)}</span></button></div>
+        <div className="header-actions"><button className="icon-button header-icon" type="button" aria-label="Open workspace folder" title="Open workspace folder" disabled={!w.connected || w.saving || w.opening} onClick={() => void w.openWorkspace()}><Icon name="folder" size={16} /></button><button className="theme-button" onClick={cycleTheme} aria-label={`Theme: ${theme}. Click to change theme.`} title={`Theme: ${theme}`}><Icon name="sun" size={16} /><span>{theme[0].toUpperCase() + theme.slice(1)}</span></button></div>
       </header>
       <div className="workspace-content">
         {w.error && <div className="error-banner" role="alert">{w.error}</div>}

@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 
 
@@ -31,6 +32,24 @@ def config_dir() -> Path:
     xdg = os.environ.get("XDG_CONFIG_HOME")
     base = Path(xdg).expanduser() if xdg and Path(xdg).is_absolute() else Path.home() / ".config"
     return base / "tm-builder"
+
+
+def open_in_editor() -> None:
+    """Open the configured workspace with `make open-workspace`."""
+    try:
+        completed = subprocess.run(
+            ["make", "open-workspace"],
+            cwd=PROJECT,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError(f"Could not run make open-workspace: {error}") from error
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "make open-workspace failed").strip()
+        raise RuntimeError(detail.splitlines()[-1])
 
 
 def ensure_workspace() -> Path:

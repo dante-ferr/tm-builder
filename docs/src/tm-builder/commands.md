@@ -11,7 +11,7 @@ user workspace's matching folder.
 | --- | --- |
 | `make setup` | Install dependencies, build the web UI, seed the user workspace, configure a `.code-workspace` file, and install the VS Code extension when the `code` command is available. |
 | `make install-extension` | Package and install the local VS Code extension. |
-| `make open-workspace` | Open the configured machine workspace in VS Code. |
+| `make open-workspace` | Open the configured machine workspace in VS Code. The viewer **Open workspace folder** button runs this after the current machine file is saved. |
 | `make setup-formal` | Install OS packages needed for formal PNG table exports on supported Linux distributions. |
 
 The default workspace is `~/Documents/TM Builder/`. `make setup` creates its

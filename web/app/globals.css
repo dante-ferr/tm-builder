@@ -89,7 +89,8 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .machine-path { font-family: ui-monospace, monospace; font-size: 10px; }
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .header-actions > button { box-shadow: 0 2px 2px #20223608; }
-.theme-button { color: var(--muted); }
+.theme-button, .header-icon { color: var(--muted); }
+.header-actions .header-icon { width: 34px; min-height: 34px; }
 .workspace-content { display: flex; flex: 1; flex-direction: column; gap: 18px; padding: 0 32px 16px; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px #20223606; transition: border-color .2s ease, box-shadow .2s ease; }
 .panel-heading { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--line); }

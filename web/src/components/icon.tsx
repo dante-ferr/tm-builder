@@ -21,6 +21,7 @@ const paths = {
   download: 'M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5',
   upload: 'M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1',
+  folder: 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z',
   close: 'm6 6 12 12M6 18 18 6', code: 'm8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18',
 };
 export function Icon({name, size = 18, style}: {name: keyof typeof paths; size?: number; style?: CSSProperties}) {

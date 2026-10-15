@@ -86,8 +86,10 @@ docs-build:
 docs-serve:
 	mdbook serve docs
 
+# Local viewer. --port is the loopback port. Python applies Render's PORT only
+# when RENDER_EXTERNAL_URL is set, so a normal local `make view` is unchanged.
 view:
-	$(TM_BUILDER) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) --port "$(PORT)" $(ARGS)
+	$(TM_BUILDER) view $(if $(filter command line environment override,$(origin MACHINE)),"$(MACHINE)",) $(if $(RENDER_EXTERNAL_URL),,--port "$(PORT)") $(if $(RENDER_EXTERNAL_URL),--no-open,) $(ARGS)
 
 # Run the Python API and Next.js together. Next proxies /api to the API server.
 dev: web-install

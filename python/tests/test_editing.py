@@ -2,20 +2,34 @@
 from pathlib import Path
 from http.client import HTTPConnection
 import json
+import subprocess
 import threading
 import tempfile
 import unittest
+
+from unittest.mock import patch
 
 import yaml
 
 from tm_builder.definition import parse_definition
 from tm_builder.designer import DiagramSource, create_server
 from tm_builder.editing import edit_yaml
+from tm_builder.workspace import PROJECT, open_in_editor
 
 SOURCE = (Path(__file__).parent / 'fixtures/machines/copy.yaml').read_text()
 
 
 class EditingTests(unittest.TestCase):
+    def test_open_in_editor_runs_make_open_workspace(self):
+        with patch('tm_builder.workspace.subprocess.run') as run:
+            run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+            open_in_editor()
+        run.assert_called_once_with(
+            ['make', 'open-workspace'], cwd=PROJECT, capture_output=True, text=True, timeout=60, check=False)
+        with patch('tm_builder.workspace.subprocess.run') as run:
+            run.return_value = subprocess.CompletedProcess(args=[], returncode=2, stderr='code: not found\n')
+            with self.assertRaisesRegex(RuntimeError, 'code: not found'):
+                open_in_editor()
     def test_only_changed_fields_are_replaced(self):
         source = '# My machine\n' + SOURCE + '\n# Keep my notes\n'
         result = edit_yaml(source, {'name': 'Visual copy'})
@@ -140,6 +154,11 @@ class EditingTests(unittest.TestCase):
                 self.assertFalse(created['can_undo'])
                 self.assertTrue((Path(directory) / 'machines/new.yaml').is_file())
                 self.assertEqual(request('/api/create', {'name': 'Overwrite', 'filename': 'new.yaml'})[0], 400)
+                with patch('tm_builder.designer.open_in_editor') as opened:
+                    status, body = request('/api/open-workspace', {})
+                self.assertEqual(status, 200)
+                self.assertEqual(body, {'opened': True})
+                opened.assert_called_once()
             finally:
                 connection.close()
                 server.shutdown()
