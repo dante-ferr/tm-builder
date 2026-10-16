@@ -1,5 +1,5 @@
 'use client';
-import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react';
 import {mountGraphNavigation} from '../graph-navigation';
 import {errorMessage} from '../lib/api';
 import {boundsInSvg, centerInSvg} from '../lib/graph-geometry';
@@ -22,6 +22,7 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
   const activeEditor = useRef<{key: string; x: number; y: number; height: number; halfHeight: number} | null>(null);
   const editorOffsets = useRef(new Map<string, {x: number; y: number}>());
   const editorHandle = useRef<HTMLButtonElement>(null);
+  const editorLayer = useRef<HTMLDivElement>(null);
   const editorDrag = useRef<{pointerId: number; x: number; y: number; offset: {x: number; y: number}} | null>(null);
   const [draggingEditor, setDraggingEditor] = useState(false);
   const previousMachinePath = useRef<string | null>(null);
@@ -146,6 +147,14 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
     navigation.current?.reveal(point.x, point.y, {offsetY: -height / 2 - 6});
     return () => {activeEditor.current = null; editorDrag.current = null; setDraggingEditor(false); target?.classList.remove('editing-node', 'editing-edge');};
   }, [svg, machine, inlineEditor?.key]);
+  useLayoutEffect(() => {
+    const layer = editorLayer.current, anchor = activeEditor.current;
+    if (!layer || !anchor) return;
+    const height = layer.offsetHeight;
+    if (!height || Math.abs(anchor.height - height) < 1) return;
+    anchor.height = height;
+    positionEditor();
+  }, [editorPosition, inlineEditor?.key]);
   return <section className="graph-panel panel" id="graph-panel" aria-label="State graph">
     <div className="panel-heading"><div className="panel-title"><Icon name="graph" size={17} /><h2>State graph</h2><span className="subtle">{machine ? `${machine.states.length} states · ${machine.tapes} ${machine.tapes === 1 ? 'tape' : 'tapes'}` : 'Visualization'}</span></div><div className="graph-actions">{tools}<div className="graph-view-tools" role="toolbar" aria-label="Graph view tools"><button className="icon-button" onClick={() => navigation.current?.zoom(.8)} disabled={!svg} aria-label="Zoom out" title="Zoom out"><Icon name="minus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.zoom(1.25)} disabled={!svg} aria-label="Zoom in" title="Zoom in"><Icon name="plus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.fit()} disabled={!svg} aria-label="Fit view" title="Fit view"><Icon name="fit" size={16} /></button></div><ExportDialog machine={machine} svg={svg} /></div>{actions}</div>
     {settings}
@@ -160,7 +169,7 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
       point.x = bounds.left + bounds.width / 2; point.y = bounds.top + bounds.height / 2;
       const local = point.matrixTransform(svg.getScreenCTM()!.inverse()); onCanvas?.({x: local.x, y: local.y});
     }} tabIndex={0} aria-label="Rendered machine diagram" aria-describedby="graph-help" />
-      {svg && inlineEditor && editorPosition && <div data-inline-editor="true" data-graph-editor="true" className={`graph-editor-layer ${draggingEditor ? 'dragging-editor' : ''}`} style={{left: editorPosition.x, top: editorPosition.y, height: inlineEditor.height}}
+      {svg && inlineEditor && editorPosition && <div ref={editorLayer} data-inline-editor="true" data-graph-editor="true" className={`graph-editor-layer ${draggingEditor ? 'dragging-editor' : ''}`} style={{left: editorPosition.x, top: editorPosition.y}}
         onKeyDown={event => {if (event.key !== 'Escape' && !event.ctrlKey && !event.metaKey) event.stopPropagation();}} onClick={event => event.stopPropagation()}>
         <button ref={editorHandle} type="button" className="graph-editor-handle" aria-label="Move graph editor" title="Drag to move · Arrow keys move when focused"
           onPointerDown={event => {
@@ -176,7 +185,7 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
             const directions: Record<string, [number, number]> = {ArrowLeft: [-distance, 0], ArrowRight: [distance, 0], ArrowUp: [0, -distance], ArrowDown: [0, distance]};
             const direction = directions[event.key];
             if (direction) {event.preventDefault(); event.stopPropagation(); moveEditor(...direction);}
-          }}><Icon name="grip" size={14} /><span>{inlineEditor.anchor.state ? 'State' : inlineEditor.anchor.from ? 'Transition' : 'New state'}</span><span className="editor-drag-hint">Drag to move</span></button>
+          }}><Icon name="grip" size={14} /><span>{inlineEditor.anchor.state ? 'State' : inlineEditor.anchor.from ? 'Transition' : 'New state'}</span></button>
         <div className="graph-inline-editor">{inlineEditor.content}</div>
       </div>}
       {!svg && <div className="graph-empty"><span className="empty-graph"><i>q₀</i><span>→</span><i>q₁</i><span>→</span><i>q₂</i></span><h3>{renderError ? 'Unable to render diagram' : rendering ? 'Drawing your machine…' : 'Everything starts with a state.'}</h3><p>{renderError || (rendering ? 'Arranging states and transitions.' : 'Choose a machine from your library or import a YAML file to explore its transitions.')}</p>{!machine && <span className="empty-hint"><Icon name="library" size={14} />Your machine library is on the left</span>}</div>}

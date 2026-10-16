@@ -239,12 +239,11 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 #graph .editing-node text, #graph .editing-edge text { fill: var(--accent); font-weight: 600; }
 #graph .editing-edge path, #graph .editing-edge polygon { stroke: var(--accent); stroke-width: 3; }
 #graph .editing-edge polygon { fill: var(--accent); }
-.graph-inline-editor { height: 100%; padding: 4px; overflow: auto; color: var(--text); font: 12px/1.5 Arial, sans-serif; cursor: default; }
+.graph-inline-editor { height: 100%; padding: 0; overflow: auto; color: var(--text); font: 12px/1.5 inherit; cursor: default; }
 .inline-machine-form { padding: 12px; border: 1px solid var(--accent); background: var(--surface); border-radius: 9px; }
 .inline-machine-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
 .inline-machine-form input, .inline-machine-form select { font-size: 12px; padding: 7px 8px; }
-.inline-machine-form.state-form { width: 260px; margin: 0 auto; border-radius: 24px; border-width: 2px; }
-.inline-state-name input { width: 100%; text-align: center; font: 17px ui-monospace, monospace; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+.inline-state-name input { width: 100%; text-align: center; font: 600 16px/1.3 inherit; letter-spacing: -.4px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
 .inline-state-properties { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .inline-state-properties > label:first-child { flex: 1; }
 .inline-state-properties .inline-check { color: var(--text); }
@@ -299,13 +298,16 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .create-machine-actions { display: flex; justify-content: flex-end; gap: 6px; }
 .create-machine-actions button { font-size: 11px; padding: 7px 9px; }
 
-.graph-editor-layer { position: absolute; z-index: 2; width: 380px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); transform: translate(-50%, -50%); transition: left 180ms cubic-bezier(.2, .75, .25, 1), top 180ms cubic-bezier(.2, .75, .25, 1); }
+.graph-editor-layer { position: absolute; z-index: 2; display: flex; flex-direction: column; width: min(380px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow: hidden; border: 1px solid var(--accent); border-radius: 9px; background: var(--surface); transform: translate(-50%, -50%); transition: left 180ms cubic-bezier(.2, .75, .25, 1), top 180ms cubic-bezier(.2, .75, .25, 1); }
+.graph-editor-layer:has(.state-form) { width: min(260px, calc(100% - 16px)); border-width: 2px; border-radius: 24px; }
 .graph-stage:has(.graph-canvas.panning) .graph-editor-layer { transition: none; }
 @media (prefers-reduced-motion: reduce) { .graph-editor-layer { transition: none; } }
 
-.graph-editor-layer { display: flex; flex-direction: column; }
 .graph-editor-layer .graph-inline-editor { flex: 1; min-height: 0; height: auto; }
-.graph-editor-handle { display: flex; align-items: center; flex-shrink: 0; gap: 7px; width: 100%; min-height: 25px; padding: 4px 9px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 10px; cursor: grab; touch-action: none; user-select: none; }
-.editor-drag-hint { margin-left: auto; font-size: 9px; }
+.graph-editor-layer .inline-machine-form { width: 100%; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.graph-editor-handle { display: flex; align-items: center; flex-shrink: 0; gap: 7px; width: 100%; min-height: 32px; margin: 0; padding: 7px 14px; border: 0; border-radius: 0; border-bottom: 1px solid var(--line); background: var(--surface); box-shadow: none; color: var(--text); font-size: 12px; font-weight: 600; cursor: grab; touch-action: none; user-select: none; }
+.graph-editor-handle > svg { color: var(--muted); }
+.graph-editor-handle:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--line); color: var(--text); }
+.graph-editor-handle:focus-visible { outline-offset: -3px; }
 .graph-editor-layer.dragging-editor { transition: none; }
 .graph-editor-layer.dragging-editor .graph-editor-handle { cursor: grabbing; }
