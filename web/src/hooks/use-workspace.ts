@@ -1,6 +1,7 @@
 'use client';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {api, errorMessage} from '../lib/api';
+import {formatDiagnostics, issueKind, type IssueKind} from '../lib/issues';
 import type {Diagram, Library, MachineDefinition, MachineSource, Trace} from '../lib/types';
 
 const pairedInputs: Record<string, string> = {
@@ -8,6 +9,13 @@ const pairedInputs: Record<string, string> = {
   'copy.yaml': 'copy.yaml', 'single_tape.yaml': 'binary.yaml', 'nondeterministic_contains_one.yaml': 'binary.yaml',
   'four_groups.yaml': 'four_groups.yaml',
 };
+function machineNotice(diagram: Diagram | null, action: {kind: IssueKind; message: string} | null) {
+  const diagnostics = diagram && !diagram.valid && diagram.revision !== 'unselected' ? formatDiagnostics(diagram.diagnostics) : '';
+  const actionText = action?.kind === 'machine' ? action.message : '';
+  if (!diagnostics) return actionText;
+  if (!actionText || diagnostics.includes(actionText)) return diagnostics;
+  return `${diagnostics}\n${actionText}`;
+}
 export function useWorkspace() {
   const [diagram, setDiagram] = useState<Diagram | null>(null);
   const [library, setLibrary] = useState<Library>({machines: [], inputs: []});
@@ -18,7 +26,7 @@ export function useWorkspace() {
   const customLimit = useRef(false);
   const [trace, setTrace] = useState<Trace | null>(null);
   const [message, setMessage] = useState('Load a trace to inspect the tapes.');
-  const [error, setError] = useState('');
+  const [actionIssue, setActionIssue] = useState<{kind: IssueKind; message: string} | null>(null);
   const [connectionError, setConnectionError] = useState('');
   const [libraryError, setLibraryError] = useState('');
   const [connected, setConnected] = useState(false);
@@ -33,6 +41,10 @@ export function useWorkspace() {
   const selectionBusy = useRef(false);
   const revision = useRef<string | null>(null);
 
+  const report = useCallback((error: unknown, expected: IssueKind) => {
+    const message = errorMessage(error);
+    setActionIssue({kind: issueKind(message) === 'system' ? 'system' : expected, message});
+  }, []);
   const clearTrace = useCallback((note: string) => {
     activeRun.current?.abort(); activeRun.current = null;
     simulation.current++; setTrace(null); setRunning(false); setMessage(note);
@@ -41,6 +53,7 @@ export function useWorkspace() {
     if (next.revision !== revision.current) {
       revision.current = next.revision;
       setDiagram(next);
+      setActionIssue(current => current?.kind === 'machine' ? null : current);
       clearTrace('Machine changed. Load a trace to inspect the tapes.');
     }
   }, [clearTrace]);
@@ -88,7 +101,7 @@ export function useWorkspace() {
     const controller = lifetime.current;
     const version = ++selection.current;
     const inputToken = ++inputRequest.current;
-    selectionBusy.current = true; setSelecting(true); setError('');
+    selectionBusy.current = true; setSelecting(true); setActionIssue(null);
     clearTrace('Selecting machine…');
     try {
       const next = await api.selectMachine(source, controller.signal);
@@ -102,13 +115,13 @@ export function useWorkspace() {
           setSetup(loaded.source); setInput(filename || '');
         }
       }
-    } catch (error) { if (!controller.signal.aborted) setError(errorMessage(error)); }
+    } catch (error) { if (!controller.signal.aborted) report(error, 'machine'); }
     finally { if (!controller.signal.aborted && version === selection.current) { selectionBusy.current = false; setSelecting(false); } }
   }
   async function editMachine(expectedRevision: string, changes: Partial<MachineDefinition>) {
     if (selectionBusy.current || !lifetime.current || !connected) throw new Error('Wait for the workspace connection.');
     const controller = lifetime.current;
-    selectionBusy.current = true; selection.current++; setSaving(true); setError('');
+    selectionBusy.current = true; selection.current++; setSaving(true); setActionIssue(null);
     clearTrace('Machine edited. Load a new trace.');
     try {
       const next = await api.edit(expectedRevision, changes, controller.signal);
@@ -120,12 +133,12 @@ export function useWorkspace() {
   }
   async function changeHistory(direction: 'undo' | 'redo') {
     if (selectionBusy.current || !lifetime.current || !connected || !diagram?.valid) return;
-    selectionBusy.current = true; selection.current++; setSaving(true); setError('');
+    selectionBusy.current = true; selection.current++; setSaving(true); setActionIssue(null);
     clearTrace('Machine changed. Load a new trace.');
     try {
       const next = await api.history(revision.current!, direction, lifetime.current.signal);
       acceptDiagram(next); setHistoryGeneration(value => value + 1);
-    } catch (error) {setError(errorMessage(error));}
+    } catch (error) {report(error, 'machine');}
     finally {selectionBusy.current = false; setSaving(false);}
   }
   useEffect(() => {
@@ -143,7 +156,7 @@ export function useWorkspace() {
   async function createMachine(name: string, filename: string) {
     if (selectionBusy.current || !lifetime.current || !connected) return false;
     const controller = lifetime.current;
-    selectionBusy.current = true; selection.current++; setSelecting(true); setError('');
+    selectionBusy.current = true; selection.current++; setSelecting(true); setActionIssue(null);
     try {
       const next = await api.create(name, filename, controller.signal);
       if (controller.signal.aborted) return false;
@@ -151,12 +164,12 @@ export function useWorkspace() {
       inputRequest.current++; setSetup('tapes: []'); setInput('');
       setLibrary(current => ({...current, machines: [...current.machines.filter(entry => entry.filename !== filename), {filename, example: false}].sort((a, b) => a.filename.localeCompare(b.filename))}));
       return true;
-    } catch (error) {if (!controller.signal.aborted) setError(errorMessage(error)); return false;}
+    } catch (error) {if (!controller.signal.aborted) report(error, 'machine'); return false;}
     finally {selectionBusy.current = false; if (!controller.signal.aborted) setSelecting(false);}
   }
   async function selectInput(filename: string) {
     const token = ++inputRequest.current;
-    setInput(filename); setError('');
+    setInput(filename); setActionIssue(null);
     clearTrace('Starting tapes changed. Load a new trace.');
     if (!filename || !lifetime.current) {
       if (!filename) setSetup('tapes: []');
@@ -168,7 +181,7 @@ export function useWorkspace() {
       if (!controller.signal.aborted && token === inputRequest.current) {
         setSetup(result.source); clearTrace('Starting tapes changed. Load a new trace.');
       }
-    } catch (error) { if (!controller.signal.aborted && token === inputRequest.current) setError(errorMessage(error)); }
+    } catch (error) { if (!controller.signal.aborted && token === inputRequest.current) report(error, 'machine'); }
   }
   function changeSetup(value: string) {
     inputRequest.current++; setInput(''); setSetup(value); clearTrace('Starting tapes changed. Load a new trace.');
@@ -181,14 +194,14 @@ export function useWorkspace() {
       if (lifetime.current?.signal.aborted) return;
       if (kind === 'machine') await selectMachine({filename: file.name, source});
       else if (token === inputRequest.current) changeSetup(source);
-    } catch (error) { setError(errorMessage(error)); }
+    } catch (error) { report(error, 'machine'); }
   }
   async function openWorkspace() {
     if (!lifetime.current || !connected || saving || opening || selectionBusy.current) return;
-    setOpening(true); setError('');
+    setOpening(true); setActionIssue(null);
     try {
       await api.openWorkspace(lifetime.current.signal);
-    } catch (error) { if (!lifetime.current.signal.aborted) setError(errorMessage(error)); }
+    } catch (error) { if (!lifetime.current.signal.aborted) report(error, 'system'); }
     finally { setOpening(false); }
   }
   async function run() {
@@ -206,11 +219,18 @@ export function useWorkspace() {
       if (controller.signal.aborted || token !== simulation.current) return;
       if (result.revision !== revision.current) throw new Error('Machine changed. Load a new trace.');
       setTrace(result); setMessage('');
-    } catch (error) { if (!controller.signal.aborted && token === simulation.current) setMessage(errorMessage(error)); }
+    } catch (error) {
+      if (controller.signal.aborted || token !== simulation.current) return;
+      const text = errorMessage(error);
+      if (issueKind(text) === 'system') setActionIssue({kind: 'system', message: text});
+      else setMessage(text);
+    }
     finally { if (!controller.signal.aborted && token === simulation.current) setRunning(false); }
   }
   return {
-    diagram, machine: diagram?.valid ? diagram : null, library, setup, input, maxSteps, maximumSteps, trace, message, error: error || connectionError || libraryError,
+    diagram, machine: diagram?.valid ? diagram : null, library, setup, input, maxSteps, maximumSteps, trace, message,
+    machineError: machineNotice(diagram, actionIssue),
+    systemError: connectionError || libraryError || (actionIssue?.kind === 'system' ? actionIssue.message : ''),
     connected, selecting, running, saving, opening, historyGeneration, changeHistory, createMachine, editMachine, selectMachine, selectInput, changeSetup, importFile, openWorkspace, run,
     changeMaxSteps: (value: number) => {
       customLimit.current = true; setMaxSteps(value);

@@ -31,11 +31,9 @@ export default function MachineWorkspace() {
     <LibraryPanel workspace={w} />
     <main className="workspace-main" id="workspace">
       <div className="workspace-content">
-        {w.error && <div className="error-banner" role="alert">{w.error}</div>}
-        {w.diagram && !w.diagram.valid && w.diagram.revision !== 'unselected' && <div className="error-banner" role="alert">{w.diagram.diagnostics.map((diagnostic, index) => <div key={index}>Line {diagnostic.line}:{diagnostic.column} · {diagnostic.message}</div>)}</div>}
         <MachineEditor key={w.diagram?.path} workspace={w} playback={playback} actions={actions} onBeginEdit={() => setPlaybackExpanded(false)} />
       </div>
-      <footer className="workspace-footer"><span><span className={`connection-dot ${w.connected ? 'connected' : ''}`} />{w.machine ? w.machine.mode : w.connected ? 'Workspace ready' : 'Connecting…'}</span><span>Transitions <code>read → write, move</code><span className="footer-divider">/</span><code>|</code> separates tapes</span></footer>
+      <footer className="workspace-footer"><span><span className={`connection-dot ${w.connected ? 'connected' : ''}`} />{w.machine ? w.machine.mode : w.connected ? 'Workspace ready' : 'Connecting…'}</span>{w.systemError && <p className="system-issue" role="alert"><span className="issue-label">Workspace</span>{w.systemError}</p>}<span>Transitions <code>read → write, move</code><span className="footer-divider">/</span><code>|</code> separates tapes</span></footer>
       <PlaybackPanel trace={w.trace} machine={w.machine} message={w.message} playback={playback} expanded={playbackExpanded} onExpandedChange={setPlaybackExpanded} />
     </main>
     <LimitReachedDialog trace={w.trace} />

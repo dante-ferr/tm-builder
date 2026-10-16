@@ -11,11 +11,12 @@ import {ExportDialog} from './export-dialog';
 type Navigation = ReturnType<typeof mountGraphNavigation>;
 export interface GraphAnchor {state?: string; from?: string; to?: string; group?: string; point?: {x: number; y: number}}
 export interface GraphEditor {key: string; anchor: GraphAnchor; content: ReactNode; height: number}
-export function StateGraph({machine, playback: p, onState, onEdge, onGroup, selectedState, selectedGroup, tools, actions, help, inlineEditor, settings, addingState, onCanvas}: {
+export function StateGraph({machine, playback: p, onState, onEdge, onGroup, selectedState, selectedGroup, tools, actions, help, machineIssue, inlineEditor, settings, addingState, onCanvas}: {
   machine: Machine | null; playback: PlaybackController;
   onState?: (state: string) => void; onEdge?: (from: string, to: string) => void; onGroup?: (group: string) => void;
   selectedState?: string | null; selectedGroup?: string | null;
   tools?: ReactNode; actions?: ReactNode; help?: ReactNode; inlineEditor?: GraphEditor | null; settings?: ReactNode;
+  machineIssue?: string;
   addingState?: boolean; onCanvas?: (point: {x: number; y: number}) => void;
 }) {
   const graph = useRef<HTMLDivElement>(null);
@@ -197,9 +198,9 @@ export function StateGraph({machine, playback: p, onState, onEdge, onGroup, sele
           }}><Icon name="grip" size={14} /><span>{inlineEditor.anchor.state ? 'State' : inlineEditor.anchor.from ? 'Transition' : inlineEditor.anchor.group !== undefined ? (inlineEditor.anchor.group ? 'Group' : 'New group') : 'New state'}</span></button>
         <div className="graph-inline-editor">{inlineEditor.content}</div>
       </div>}
-      {!svg && <div className="graph-empty"><span className="empty-graph"><i>q₀</i><span>→</span><i>q₁</i><span>→</span><i>q₂</i></span><h3>{renderError ? 'Unable to render diagram' : rendering ? 'Drawing your machine…' : 'Everything starts with a state.'}</h3><p>{renderError || (rendering ? 'Arranging states and transitions.' : 'Choose a machine from your library or import a YAML file to explore its transitions.')}</p>{!machine && <span className="empty-hint"><Icon name="library" size={14} />Your machine library is on the left</span>}</div>}
+      {!svg && <div className="graph-empty">{!machine && machineIssue ? <><h3>This machine cannot be shown</h3><p className="machine-issue" role="alert"><span className="issue-label">Machine</span>{machineIssue}</p></> : <><span className="empty-graph"><i>q₀</i><span>→</span><i>q₁</i><span>→</span><i>q₂</i></span><h3>{renderError ? 'Unable to render diagram' : rendering ? 'Drawing your machine…' : 'Everything starts with a state.'}</h3><p>{renderError || (rendering ? 'Arranging states and transitions.' : 'Choose a machine from your library or import a YAML file to explore its transitions.')}</p>{!machine && <span className="empty-hint"><Icon name="library" size={14} />Your machine library is on the left</span>}</>}</div>}
 
     </div>
-    <div className="graph-footer"><span id="graph-help">{help || <>Scroll to zoom <span>·</span> Middle drag to pan <span>·</span> Focus graph for WASD / arrows</>}</span><span className="graph-legend"><i />State <i className="legend-group" />Group <i />Accept state</span></div>
+    <div className={`graph-footer${machine && machineIssue ? ' has-issue' : ''}`}><div className="graph-footer-copy">{machine && machineIssue && <p className="machine-issue" role="alert"><span className="issue-label">Machine</span>{machineIssue}</p>}<span id="graph-help">{help || <>Scroll to zoom <span>·</span> Middle drag to pan <span>·</span> Focus graph for WASD / arrows</>}</span></div><span className="graph-legend"><i />State <i className="legend-group" />Group <i />Accept state</span></div>
   </section>;
 }

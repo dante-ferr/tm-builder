@@ -160,7 +160,13 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .workspace-footer { display: flex; justify-content: space-between; align-items: center; gap: 15px; font-size: 9px; color: var(--muted); padding: 6px 16px; line-height: 1.5; border-top: 1px solid var(--line); background: var(--page); }
 .workspace-footer code { font-size: 9px; margin-left: 5px; }
 .footer-divider { margin: 0 10px; color: var(--subtle-ink); }
-.error-banner { border: 1px solid var(--error-border); background: var(--error-fill); color: var(--error-text); border-radius: 8px; margin: 10px 16px 0; padding: 12px 16px; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.graph-footer-copy { min-width: 0; }
+.graph-footer.has-issue { align-items: flex-start; }
+.graph-footer.has-issue .graph-footer-copy { flex: 1; }
+.issue-label { display: block; margin-bottom: 2px; font-size: 8px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; }
+.machine-issue { margin: 0; color: var(--error-text); font-size: 12px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.graph-empty .machine-issue { text-align: left; color: var(--error-text); font-size: 12px; }
+.system-issue { margin: 0; flex: 1; min-width: 180px; color: var(--reject); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
 .export-dialog { width: min(560px, calc(100vw - 32px)); max-height: 90dvh; overflow: auto; padding: 27px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); color: var(--text); box-shadow: 0 24px 100px #20223640; }
 .export-dialog::backdrop { background: #20223688; backdrop-filter: blur(4px); }
 .export-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 25px; }
