@@ -34,6 +34,7 @@ button svg { flex-shrink: 0; }
 .sidebar::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
 .brand { display: flex; align-items: center; gap: 11px; color: var(--text); text-decoration: none; margin-bottom: 43px; }
 .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--brand-border); border-radius: 12px; color: var(--accent); background: var(--accent-soft); }
+.brand-logo { width: 28px; height: 28px; background: currentColor; mask: url(/logo.svg) center / contain no-repeat; -webkit-mask: url(/logo.svg) center / contain no-repeat; }
 .brand strong { display: block; font-size: 22px; font-weight: 700; letter-spacing: -1px; }
 .brand-period { color: var(--accent); }
 .brand small { display: block; color: var(--muted); font-size: 9px; margin-top: 3px; letter-spacing: .1px; }

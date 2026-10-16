@@ -28,7 +28,7 @@ export function LibraryPanel({workspace: w}: {workspace: WorkspaceController}) {
   const machines = w.library.machines.filter(entry => !hideExamples || !entry.example);
   const inputs = w.library.inputs.filter(entry => !hideExamples || !entry.example);
   return <aside className="sidebar" aria-label="Workspace setup">
-    <a className="brand" href="/" aria-label="TMBuilder home"><span className="brand-mark"><Icon name="graph" size={27} /></span><span><strong>TMBuilder<span className="brand-period">.</span></strong><small>A playground for computation</small></span></a>
+    <a className="brand" href="/" aria-label="TMBuilder home"><span className="brand-mark" aria-hidden="true"><span className="brand-logo" /></span><span><strong>TMBuilder<span className="brand-period">.</span></strong><small>A playground for computation</small></span></a>
     <div className="sidebar-caption">YOUR WORKSPACE</div>
     <section className="sidebar-section" aria-labelledby="library-title">
       <div className="section-heading"><Icon name="library" /><h2 id="library-title">Machine library</h2><span className="count">{machines.length}</span><button className="icon-button" title="Create machine" aria-label="New machine" aria-expanded={creating} disabled={!w.connected || w.selecting || w.saving} onClick={() => setCreating(value => !value)}><Icon name="plus" size={16} /></button></div>

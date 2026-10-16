@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
+<!-- SVG created with Arrow, by QuiverAI (https://quiver.ai) -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      #state_connectors path, #middle_state { stroke: #f4f4f5; }
+      #left_state, #right_state, #active_marker { fill: #f4f4f5; }
+    }
+  </style>
+  <g id="state_row"><g fill="none" stroke="#232323" stroke-width="1.75" stroke-linecap="round" id="state_connectors"><path d="M16 46 C10 31 16 20 25 25"/><path d="M47 25 C64 19 73 32 64 41"/></g><circle cx="18" cy="54" r="8.5" fill="#232323" stroke="none" id="left_state"/><circle cx="36" cy="28" r="10.5" fill="none" stroke="#232323" id="middle_state" stroke-width="2"/><circle cx="36" cy="28" r="3.5" fill="#232323" id="active_marker" stroke="none"/>
+  <circle cx="62" cy="48" r="7.5" fill="#232323" stroke="none" id="right_state"/></g>
+  </svg>
