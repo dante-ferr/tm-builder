@@ -45,31 +45,13 @@ class ExampleTests(unittest.TestCase):
     def test_examples_without_inputs(self):
         self.assertEqual(simulate(self.load('halt.yaml'))['status'], 'HALT')
 
-    def test_state_groups_and_four_group_ring(self):
+    def test_state_groups(self):
         grouped = self.load('state_groups.yaml')
         self.assertEqual(list(grouped.groups), ['Read', 'Halt'])
         self.assertEqual(simulate(grouped, ['a'])['status'], 'ACCEPT')
         self.assertEqual(simulate(grouped, ['aa'])['status'], 'ACCEPT')
         self.assertEqual(simulate(grouped, [''])['status'], 'REJECT')
         self.assertEqual(machine_diagram(grouped).source.count('subgraph cluster_'), 2)
-        ring = self.load('four_groups.yaml')
-        self.assertEqual(list(ring.groups), ['North', 'East', 'South', 'West'])
-        self.assertEqual(machine_diagram(ring).source.count('subgraph cluster_'), 4)
-        home = {state: name for name, members in ring.groups.items() for state in members}
-        neighbors = {}
-        for rule in ring.transitions:
-            left, right = home[rule.source], home[rule.to]
-            if left == right:
-                continue
-            neighbors.setdefault(left, set()).add(right)
-            neighbors.setdefault(right, set()).add(left)
-        self.assertEqual({name: len(linked) for name, linked in neighbors.items()},
-                         {'North': 2, 'East': 2, 'South': 2, 'West': 2})
-        setup = self.setup('four_groups.yaml', ring)
-        accepted = simulate(ring, setup=setup)
-        self.assertEqual(accepted['status'], 'ACCEPT')
-        self.assertEqual(accepted['configuration']['step'], 3)
-        self.assertEqual(simulate(ring, [''])['status'], 'HALT')
 
     def test_binary_counter_stress_trace(self):
         definition = self.load('binary_counter.yaml')

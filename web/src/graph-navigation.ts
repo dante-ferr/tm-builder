@@ -1,5 +1,5 @@
 // Keep the diagram in a fixed viewport so navigation also works when it fits.
-export const FOLLOW_ZOOM = 0.85;
+export const FOLLOW_ZOOM = 1.25;
 
 export function mountGraphNavigation(graph: HTMLElement, signal: AbortSignal, onFollowStop = () => {}, onViewChange = () => {}) {
   let svg: SVGSVGElement | null = null;

@@ -179,7 +179,9 @@ class MachineTests(unittest.TestCase):
     def test_state_groups_are_optional_clusters(self):
         ungrouped, _ = parse_definition(SOURCE)
         self.assertEqual(ungrouped.groups, {})
-        self.assertNotIn('subgraph', machine_diagram(ungrouped).source)
+        ungrouped_dot = machine_diagram(ungrouped).source
+        self.assertNotIn('subgraph', ungrouped_dot)
+        self.assertIn('rankdir=LR', ungrouped_dot)
         source = (Path(__file__).parents[2] / 'data/examples/machines/state_groups.yaml').read_text()
         definition, warnings = parse_definition(source)
         self.assertEqual(warnings, [])
