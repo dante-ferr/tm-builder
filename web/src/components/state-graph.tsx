@@ -27,7 +27,6 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
   const previousMachinePath = useRef<string | null>(null);
   const [svg, setSvg] = useState<SVGSVGElement | null>(null);
   const [editorPosition, setEditorPosition] = useState<{x: number; y: number} | null>(null);
-  const [expanded, setExpanded] = useState(false);
   const [renderError, setRenderError] = useState('');
   const [rendering, setRendering] = useState(false);
   const stopFollow = useRef(() => p.setFollow(false));
@@ -100,12 +99,6 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
     else navigation.current?.stopFollowing();
   }, [p.playing, p.follow, svg]);
   useEffect(() => {
-    if (!expanded) return;
-    const close = (event: KeyboardEvent) => {if (event.key === 'Escape') setExpanded(false);};
-    window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
-  }, [expanded]);
-  useEffect(() => {
     if (!svg || !machine) return;
     const controller = new AbortController();
     for (const node of svg.querySelectorAll<SVGGElement>('.node, .edge')) {
@@ -153,8 +146,8 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
     navigation.current?.reveal(point.x, point.y, {offsetY: -height / 2 - 6});
     return () => {activeEditor.current = null; editorDrag.current = null; setDraggingEditor(false); target?.classList.remove('editing-node', 'editing-edge');};
   }, [svg, machine, inlineEditor?.key]);
-  return <section className={`graph-panel panel ${expanded ? 'expanded' : ''}`} id="graph-panel" aria-label="State graph">
-    <div className="panel-heading"><div className="panel-title"><Icon name="graph" size={17} /><h2>State graph</h2><span className="subtle">{machine ? `${machine.states.length} states · ${machine.tapes} ${machine.tapes === 1 ? 'tape' : 'tapes'}` : 'Visualization'}</span></div><div className="graph-actions">{tools}<div className="graph-view-tools" role="toolbar" aria-label="Graph view tools"><button className="icon-button" onClick={() => navigation.current?.zoom(.8)} disabled={!svg} aria-label="Zoom out" title="Zoom out"><Icon name="minus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.zoom(1.25)} disabled={!svg} aria-label="Zoom in" title="Zoom in"><Icon name="plus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.fit()} disabled={!svg} aria-label="Fit view" title="Fit view"><Icon name="fit" size={16} /></button></div><ExportDialog machine={machine} svg={svg} /><button className="icon-button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls="graph-panel" aria-label={expanded ? 'Shrink state graph' : 'Expand state graph'} title={expanded ? 'Shrink state graph (Esc)' : 'Expand state graph'}><Icon name="expand" size={16} /></button>{actions}</div></div>
+  return <section className="graph-panel panel" id="graph-panel" aria-label="State graph">
+    <div className="panel-heading"><div className="panel-title"><Icon name="graph" size={17} /><h2>State graph</h2><span className="subtle">{machine ? `${machine.states.length} states · ${machine.tapes} ${machine.tapes === 1 ? 'tape' : 'tapes'}` : 'Visualization'}</span></div><div className="graph-actions">{tools}<div className="graph-view-tools" role="toolbar" aria-label="Graph view tools"><button className="icon-button" onClick={() => navigation.current?.zoom(.8)} disabled={!svg} aria-label="Zoom out" title="Zoom out"><Icon name="minus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.zoom(1.25)} disabled={!svg} aria-label="Zoom in" title="Zoom in"><Icon name="plus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.fit()} disabled={!svg} aria-label="Fit view" title="Fit view"><Icon name="fit" size={16} /></button></div><ExportDialog machine={machine} svg={svg} /></div>{actions}</div>
     {settings}
     <div className="graph-stage"><div id="graph" ref={graph} className={`graph-canvas ${addingState ? 'adding-state' : ''}`} onClick={event => {
       if (!addingState || !svg || (event.target as Element).closest('.node, .edge, [data-graph-editor]')) return;

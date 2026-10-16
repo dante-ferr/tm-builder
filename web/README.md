@@ -130,7 +130,7 @@ numeric-looking or YAML-significant symbols with the necessary quoting.
 
 
 The camera fits when selecting a different machine or pressing Fit view. Edits,
-undo/redo, window resizing, graph expansion, settings panels, and playback bar
+undo/redo, window resizing, settings panels, and playback bar
 changes preserve manual zoom and pan. Active playback following still starts at
 85% zoom; subsequent manual zoom is preserved while following.
 

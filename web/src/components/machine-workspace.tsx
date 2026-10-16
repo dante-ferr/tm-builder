@@ -10,20 +10,21 @@ import {PlaybackPanel} from './playback-panel';
 import {Icon} from './icon';
 import {LimitReachedDialog} from './limit-reached-dialog';
 
-const themes: {id: Theme; label: string; icon: 'sun' | 'moon' | 'monitor'}[] = [
-  {id: 'light', label: 'Light', icon: 'sun'},
-  {id: 'dark', label: 'Dark', icon: 'moon'},
-  {id: 'system', label: 'System', icon: 'monitor'},
-];
+const themeCycle: Record<Theme, {next: Theme; icon: 'sun' | 'moon' | 'monitor'; label: string}> = {
+  light: {next: 'dark', icon: 'sun', label: 'Light'},
+  dark: {next: 'system', icon: 'moon', label: 'Dark'},
+  system: {next: 'light', icon: 'monitor', label: 'System'},
+};
 
 export default function MachineWorkspace() {
   const w = useWorkspace();
   const playback = usePlayback(w.trace);
   const [playbackExpanded, setPlaybackExpanded] = useState(false);
   const {theme, setTheme} = useTheme();
+  const current = themeCycle[theme];
   const actions = <div className="page-actions">
     <button className="icon-button" type="button" aria-label="Open workspace folder" title="Open workspace folder" disabled={!w.connected || w.saving || w.opening} onClick={() => void w.openWorkspace()}><Icon name="folder" size={16} /></button>
-    <div className="theme-switch" role="group" aria-label="Color theme">{themes.map(mode => <button key={mode.id} className="theme-option" type="button" aria-pressed={theme === mode.id} title={`${mode.label} theme`} onClick={() => setTheme(mode.id)}><Icon name={mode.icon} size={14} /><span>{mode.label}</span></button>)}</div>
+    <button className="icon-button" type="button" aria-label={`${current.label} theme. Click to change theme.`} title={`${current.label} theme`} onClick={() => setTheme(current.next)}><Icon name={current.icon} size={16} /></button>
   </div>;
   return <div className="workspace-shell" data-theme={theme}>
     <a className="skip-link" href="#workspace">Skip to machine workspace</a>

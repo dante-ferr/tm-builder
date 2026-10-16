@@ -17,7 +17,6 @@ const paths = {
   back: 'M6 5v14m12-14L8 12l10 7Z', next: 'M18 5v14M6 5l10 7-10 7Z',
   plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
   fit: 'M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5M8 8h8v8H8z',
-  expand: 'M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5',
   download: 'M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5',
   upload: 'M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1',
