@@ -9,20 +9,30 @@ class _Action(list):
     """Keep read/write/move triples compact in the regenerated YAML."""
 
 
+class _Names(list):
+    """Keep a group's state list on one line."""
+
+
 class _Dumper(yaml.SafeDumper):
     pass
 
 
-_Dumper.add_representer(_Action, lambda dumper, value: dumper.represent_sequence(
-    'tag:yaml.org,2002:seq', value, flow_style=True))
+def _flow_list(dumper, value):
+    return dumper.represent_sequence('tag:yaml.org,2002:seq', value, flow_style=True)
+
+
+_Dumper.add_representer(_Action, _flow_list)
+_Dumper.add_representer(_Names, _flow_list)
 
 
 def _dump(value):
-    def prepare(item):
+    def prepare(item, key=None):
+        if key == 'groups' and isinstance(item, dict):
+            return {name: _Names(members) for name, members in item.items()}
         if isinstance(item, dict):
-            return {key: [_Action(action) for action in child]
-                    if key == 'tapes' and isinstance(child, list)
-                    else prepare(child) for key, child in item.items()}
+            return {child_key: [_Action(action) for action in child]
+                    if child_key == 'tapes' and isinstance(child, list)
+                    else prepare(child, child_key) for child_key, child in item.items()}
         if isinstance(item, list):
             return [prepare(child) for child in item]
         return item

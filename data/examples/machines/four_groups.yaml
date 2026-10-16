@@ -1,0 +1,32 @@
+# Four groups on a ring. Each group links only to its two neighbors.
+name: Four groups
+model: deterministic
+tapes: 1
+blank: _
+input_alphabet: [a, b]
+tape_alphabet: [a, b, _]
+states: [n1, n2, e1, e2, s1, accept, w1, w2]
+start: n1
+accept: [accept]
+reject: []
+groups:
+  North: [n1, n2]
+  East: [e1, e2]
+  South: [s1, accept]
+  West: [w1, w2]
+transitions:
+  - {from: n1, tapes: [[a, a, R]], to: e1}
+  - {from: n1, tapes: [[b, b, R]], to: w1}
+  - {from: n2, tapes: [[a, a, R]], to: e2}
+  - {from: n2, tapes: [[b, b, R]], to: w2}
+  - {from: e1, tapes: [[a, a, R]], to: n2}
+  - {from: e1, tapes: [[b, b, R]], to: s1}
+  - {from: e2, tapes: [[a, a, R]], to: n1}
+  - {from: e2, tapes: [[b, b, R]], to: s1}
+  - {from: s1, tapes: [[a, a, R]], to: e2}
+  - {from: s1, tapes: [[b, b, R]], to: w2}
+  - {from: s1, tapes: [[_, _, S]], to: accept}
+  - {from: w1, tapes: [[a, a, R]], to: n2}
+  - {from: w1, tapes: [[b, b, R]], to: s1}
+  - {from: w2, tapes: [[a, a, R]], to: n1}
+  - {from: w2, tapes: [[b, b, R]], to: s1}

@@ -6,6 +6,7 @@ import type {Diagram, Library, MachineDefinition, MachineSource, Trace} from '..
 const pairedInputs: Record<string, string> = {
   'binary_counter.yaml': 'binary_counter_million.yaml',
   'copy.yaml': 'copy.yaml', 'single_tape.yaml': 'binary.yaml', 'nondeterministic_contains_one.yaml': 'binary.yaml',
+  'four_groups.yaml': 'four_groups.yaml',
 };
 export function useWorkspace() {
   const [diagram, setDiagram] = useState<Diagram | null>(null);

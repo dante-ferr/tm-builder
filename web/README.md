@@ -78,12 +78,15 @@ stale revisions and unsaved IDE buffers are rejected. Imported machines are edit
 in memory and can be downloaded as YAML. Applying any edit clears the old trace.
 Unchanged top-level YAML fields retain their source text; changed fields are
 serialized again. Comments inside changed fields are not retained. Grouped transitions remain
-grouped. No schema or machine syntax changes are required.
+grouped. Optional `groups` lists the states enclosed by each cluster.
 
 Icon tools live in the state graph header. Select and edit opens state properties
-at the node or read/write/move fields directly on the connection. Transition tool
-selects a source, then a destination (including self-loops). Add state selects a
-location on empty canvas. Enter or the checkmark saves; Escape cancels. Multiple
+at the node, read/write/move fields directly on the connection, or the group
+name and member list on a cluster. A state's group can also be chosen in its
+property editor. The group tool adds a cluster and asks which states it encloses.
+Transition tool selects a source, then a destination (including self-loops). Add
+state selects a location on empty canvas. Enter or the checkmark saves; Escape
+cancels. Deleting a group leaves its states on the graph. Multiple
 rules on one connection are navigated with previous/next arrows in the inline
 editor. There is no separate state or transition list; YAML remains the list view.
 
@@ -91,8 +94,9 @@ Inline editors are HTML anchored to graph coordinates. They move with the graph
 but keep their size in website pixels, independently of graph zoom. Selection
 centers the editor without changing zoom. Camera keyboard shortcuts
 ignore focused form controls. Machine settings expands inside the graph panel.
-State renames update references; state deletion removes connected rules and
-requires choosing another start state first. Settings supports model, name,
+State renames update references, including group membership. State deletion removes
+connected rules and the state from its group, and requires choosing another start
+state first. Settings supports model, name,
 alphabets, blank, and tape count; tape count changes resize rule actions and any
 embedded inputs. Invalid combinations leave the YAML untouched.
 

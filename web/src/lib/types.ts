@@ -7,6 +7,7 @@ export interface MachineDefinition {
   name: string; model: MachineModel; tapes: number; blank: string;
   input_alphabet: string[]; tape_alphabet: string[]; states: string[];
   start: string; accept: string[]; reject: string[]; inputs?: string[];
+  groups: Record<string, string[]>;
   transitions: Rule[];
 }
 export interface Machine extends Snapshot {

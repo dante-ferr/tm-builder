@@ -11,9 +11,9 @@ import sys
 PROJECT = Path(__file__).resolve().parents[3]
 EXAMPLES = PROJECT / "data" / "examples"
 MACHINE_EXAMPLES = ("copy.yaml", "single_tape.yaml", "nondeterministic_contains_one.yaml",
-                   "blank_writer.yaml", "halt.yaml", "loop.yaml", "binary_counter.yaml")
-INPUT_EXAMPLES = ("copy.yaml", "binary.yaml", "copy_preloaded.yaml", "binary_counter.yaml",
-                  "binary_counter_million.yaml")
+                   "halt.yaml", "binary_counter.yaml", "state_groups.yaml", "four_groups.yaml")
+INPUT_EXAMPLES = ("copy.yaml", "binary.yaml", "binary_counter.yaml",
+                  "binary_counter_million.yaml", "four_groups.yaml")
 
 
 def workspace_path() -> Path:
@@ -212,9 +212,10 @@ def ensure_workspace() -> Path:
         destination = root / kind
         destination.mkdir(parents=True, exist_ok=True)
         for name in names:
+            source = EXAMPLES / kind / name
             target = destination / name
-            if not target.exists() and not target.is_symlink():
-                shutil.copyfile(EXAMPLES / kind / name, target)
+            if source.is_file() and not target.exists() and not target.is_symlink():
+                shutil.copyfile(source, target)
     ensure_vscode_workspace(root)
     return root
 

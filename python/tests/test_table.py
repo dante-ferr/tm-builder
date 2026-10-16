@@ -20,6 +20,23 @@ def load(name):
     return parse_definition((ROOT / 'data/examples/machines' / name).read_text())[0]
 
 
+def load_loop():
+    return parse_definition("""
+name: Loop
+model: deterministic
+tapes: 1
+blank: _
+input_alphabet: []
+tape_alphabet: [_]
+states: [loop]
+start: loop
+accept: []
+reject: []
+transitions:
+  - {from: loop, tapes: [[_, _, S]], to: loop}
+""")[0]
+
+
 def formal_tools_available():
     lookup = shutil.which('kpsewhich')
     return bool((shutil.which('lualatex') or shutil.which('xelatex'))
@@ -80,7 +97,7 @@ class TableTests(unittest.TestCase):
         multi = [row for row in rows if row[1].count(r'\texttt{') > 3]
         self.assertTrue(multi)
         blank = load('halt.yaml').blank
-        writer = load('blank_writer.yaml')
+        writer = load('copy.yaml')
         writer.blank = blank
         writer.transitions[0].tapes[0] = (blank, 'x', 'L')
         self.assertIn(r'\sqcup', table_cells(writer, 'formal')[1][0][0])
@@ -92,7 +109,7 @@ class TableTests(unittest.TestCase):
             self.assertEqual(exported, [headers, *rows])
 
     def test_readable_images_need_no_tex_and_are_tightly_sized(self):
-        definition = load('loop.yaml')
+        definition = load_loop()
         definition.transitions *= 160
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -197,7 +214,7 @@ class TableTests(unittest.TestCase):
 
     @unittest.skipUnless(formal_tools_available(), 'Requires a LaTeX engine, Latin Modern fonts, and Poppler')
     def test_real_formal_split_and_long(self):
-        definition = load('loop.yaml')
+        definition = load_loop()
         template = definition.transitions[0]
         definition.transitions = [template.model_copy(deep=True) for _ in range(100)]
         definition.states = ['loop', *(f'q_{i}' for i in range(100))]

@@ -64,8 +64,9 @@ point `TM_BUILDER_WORKSPACE` at an existing clone. The viewer starts with a
 machine picker; CLI commands that need a machine default to `copy.yaml`.
 
 Edit a loaded machine directly in the graph. The icon tools in its header let you
-select and edit a state or connection, add a state by clicking empty canvas, or
-create a transition by selecting its source and destination. Edit state properties
+select and edit a state, connection, or group, add a state by clicking empty canvas,
+add a group and choose its states, or create a transition by selecting its source
+and destination. Edit state properties
 and per-tape read/write/move fields in place; Enter or the checkmark saves to YAML.
 Use the settings icon for model, alphabets, blank, and tape count. Imported files
 stay in memory; download YAML to keep their changes. Save unsaved VS Code buffers
@@ -85,13 +86,13 @@ Bundled examples live in `data/examples/` and are copied to a new workspace.
 
 | Machine | Demonstrates | Setup |
 | --- | --- | --- |
-| [copy](data/examples/machines/copy.yaml) | Multiple tapes and flat rules | [copy](data/examples/inputs/copy.yaml), [preloaded](data/examples/inputs/copy_preloaded.yaml) |
+| [copy](data/examples/machines/copy.yaml) | Multiple tapes and flat rules | [copy](data/examples/inputs/copy.yaml) |
 | [single_tape](data/examples/machines/single_tape.yaml) | Grouped rules, quoted symbols, rejection | [binary](data/examples/inputs/binary.yaml) |
 | [nondeterministic_contains_one](data/examples/machines/nondeterministic_contains_one.yaml) | Nondeterministic rules | [binary](data/examples/inputs/binary.yaml) |
-| [blank_writer](data/examples/machines/blank_writer.yaml) | Empty input alphabet | — |
 | [halt](data/examples/machines/halt.yaml) | Custom blank and terminal states | — |
-| [loop](data/examples/machines/loop.yaml) | Self-loop and step limits | — |
 | [binary_counter](data/examples/machines/binary_counter.yaml) | Exponential binary counting and long traces | [8,190 steps](data/examples/inputs/binary_counter.yaml), [1,000,000 steps](data/examples/inputs/binary_counter_million.yaml) |
+| [state_groups](data/examples/machines/state_groups.yaml) | Optional state groups | — |
+| [four_groups](data/examples/machines/four_groups.yaml) | Four groups, each linked to two neighbors | [ab](data/examples/inputs/four_groups.yaml) |
 
 Selecting the binary counter loads the million-step input. Allow at least 1,000,000
 steps and press **Load Trace**. Execution runs on a background request thread;
@@ -104,7 +105,7 @@ default step budget of roughly five seconds. The step limit is editable, up to
 halt earlier. The CLI retains its explicit `--max-steps` option (default 1000).
 Nondeterministic search also retains its 10,000-configuration bound.
 
-Valid machines can run forever (see `loop.yaml`). The checker validates syntax and
+Valid machines can run forever. The checker validates syntax and
 machine structure; it cannot solve the general halting problem. Reaching a step or
 search limit reports **Limit reached** (`RUNNING`), never a rejection or proof of
 an infinite computation. There is no unbounded execution mode.
@@ -115,8 +116,11 @@ Machine YAML requires `name`, `model`, `tapes`, `blank`, `input_alphabet`,
 `tape_alphabet`, `states`, `start`, `accept`, `reject`, and `transitions`.
 `model` is `deterministic` or `nondeterministic`. Each transition has one
 `[read, write, move]` triple per tape; moves are `L`, `R`, or `S`. Rules can be
-flat or grouped by source state. Symbols are single characters; quote YAML
-values that could be read as numbers or booleans. See [the copy example](data/examples/machines/copy.yaml).
+flat or grouped by source state. Optional `groups` maps each cluster name to the
+states it encloses in the state graph. A state belongs to at most one group, and
+omitting `groups` leaves every state ungrouped. Symbols are single characters;
+quote YAML values that could be read as numbers or booleans. See [the copy example](data/examples/machines/copy.yaml)
+and [the state groups example](data/examples/machines/state_groups.yaml).
 
 Input YAML has a `tapes` list. Each entry has `contents` and optional `origin`
 and `head` positions, which default to zero. Omitted trailing tapes start blank.

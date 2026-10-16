@@ -9,11 +9,12 @@ import {Icon} from './icon';
 import {ExportDialog} from './export-dialog';
 
 type Navigation = ReturnType<typeof mountGraphNavigation>;
-export interface GraphAnchor {state?: string; from?: string; to?: string; point?: {x: number; y: number}}
+export interface GraphAnchor {state?: string; from?: string; to?: string; group?: string; point?: {x: number; y: number}}
 export interface GraphEditor {key: string; anchor: GraphAnchor; content: ReactNode; height: number}
-export function StateGraph({machine, playback: p, onState, onEdge, selectedState, tools, actions, help, inlineEditor, settings, addingState, onCanvas}: {
+export function StateGraph({machine, playback: p, onState, onEdge, onGroup, selectedState, selectedGroup, tools, actions, help, inlineEditor, settings, addingState, onCanvas}: {
   machine: Machine | null; playback: PlaybackController;
-  onState?: (state: string) => void; onEdge?: (from: string, to: string) => void; selectedState?: string | null;
+  onState?: (state: string) => void; onEdge?: (from: string, to: string) => void; onGroup?: (group: string) => void;
+  selectedState?: string | null; selectedGroup?: string | null;
   tools?: ReactNode; actions?: ReactNode; help?: ReactNode; inlineEditor?: GraphEditor | null; settings?: ReactNode;
   addingState?: boolean; onCanvas?: (point: {x: number; y: number}) => void;
 }) {
@@ -102,17 +103,22 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
   useEffect(() => {
     if (!svg || !machine) return;
     const controller = new AbortController();
-    for (const node of svg.querySelectorAll<SVGGElement>('.node, .edge')) {
+    const groupNames = Object.keys(machine.definition.groups);
+    for (const node of svg.querySelectorAll<SVGGElement>('.node, .edge, .cluster')) {
       const state = node.id.match(/^state_(\d+)$/);
       const edge = node.id.match(/^edge_(\d+)_(\d+)$/);
+      const cluster = node.id.match(/^group_(\d+)$/);
+      const groupName = cluster ? groupNames[Number(cluster[1])] : undefined;
       const activate = state && onState ? () => onState(machine.states[Number(state[1])])
-        : edge && onEdge ? () => onEdge(machine.states[Number(edge[1])], machine.states[Number(edge[2])]) : null;
-      node.classList.toggle('edit-selected', Boolean(state && machine.states[Number(state[1])] === selectedState));
+        : edge && onEdge ? () => onEdge(machine.states[Number(edge[1])], machine.states[Number(edge[2])])
+        : groupName && onGroup ? () => onGroup(groupName) : null;
+      node.classList.toggle('edit-selected', Boolean(
+        (state && machine.states[Number(state[1])] === selectedState) || (groupName && groupName === selectedGroup)));
       if (!activate) continue;
       node.setAttribute('tabindex', '0'); node.setAttribute('role', 'button');
-      node.setAttribute('aria-label', state ? `State ${machine.states[Number(state[1])]}` : `Transitions ${machine.states[Number(edge![1])]} to ${machine.states[Number(edge![2])]}`);
+      node.setAttribute('aria-label', state ? `State ${machine.states[Number(state[1])]}` : groupName ? `Group ${groupName}` : `Transitions ${machine.states[Number(edge![1])]} to ${machine.states[Number(edge![2])]}`);
       node.classList.add('editable');
-      node.addEventListener('click', activate, {signal: controller.signal});
+      node.addEventListener('click', event => {event.stopPropagation(); activate();}, {signal: controller.signal});
       node.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {event.preventDefault(); event.stopPropagation(); activate();}
       }, {signal: controller.signal});
@@ -121,17 +127,20 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
       controller.abort();
       svg.querySelectorAll('.editable').forEach(node => {node.classList.remove('editable'); node.removeAttribute('tabindex'); node.removeAttribute('role'); node.removeAttribute('aria-label');});
     };
-  }, [svg, machine, onState, onEdge, selectedState]);
+  }, [svg, machine, onState, onEdge, onGroup, selectedState, selectedGroup]);
   useEffect(() => {
     setEditorPosition(null);
     if (!svg || !machine || !inlineEditor) return;
     const {anchor, height} = inlineEditor;
     const state = anchor.state ? svg.querySelector<SVGGraphicsElement>(`#state_${machine.states.indexOf(anchor.state)}`) : null;
     const edge = anchor.from ? svg.querySelector<SVGGraphicsElement>(`#edge_${machine.states.indexOf(anchor.from)}_${machine.states.indexOf(anchor.to!)}`) : null;
-    const target = state || edge;
+    const groupIndex = anchor.group ? Object.keys(machine.definition.groups).indexOf(anchor.group) : -1;
+    const cluster = groupIndex >= 0 ? svg.querySelector<SVGGraphicsElement>(`#group_${groupIndex}`) : null;
+    const clusterLabel = cluster?.querySelector<SVGGraphicsElement>(':scope > text') || null;
+    const target = state || edge || cluster;
     let point = anchor.point;
     if (target) {
-      const text = edge?.querySelector<SVGGraphicsElement>('text');
+      const text = edge?.querySelector<SVGGraphicsElement>('text') || clusterLabel;
       point = centerInSvg(svg, text || target);
     } else if (anchor.from && anchor.to) {
       const a = svg.querySelector<SVGGraphicsElement>(`#state_${machine.states.indexOf(anchor.from)}`);
@@ -140,12 +149,12 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
     }
     point ||= {x: svg.viewBox.baseVal.width / 2, y: svg.viewBox.baseVal.height / 2};
     // Keep the item visible below its editor; camera movement never changes zoom.
-    const item = state || edge?.querySelector<SVGGraphicsElement>('text');
+    const item = state || edge?.querySelector<SVGGraphicsElement>('text') || clusterLabel;
     const halfHeight = item ? boundsInSvg(svg, item).height / 2 : 0;
-    target?.classList.add(state ? 'editing-node' : 'editing-edge');
+    target?.classList.add(state ? 'editing-node' : edge ? 'editing-edge' : 'editing-cluster');
     activeEditor.current = {...point, height, halfHeight, key: inlineEditor.key};
     navigation.current?.reveal(point.x, point.y, {offsetY: -height / 2 - 6});
-    return () => {activeEditor.current = null; editorDrag.current = null; setDraggingEditor(false); target?.classList.remove('editing-node', 'editing-edge');};
+    return () => {activeEditor.current = null; editorDrag.current = null; setDraggingEditor(false); target?.classList.remove('editing-node', 'editing-edge', 'editing-cluster');};
   }, [svg, machine, inlineEditor?.key]);
   useLayoutEffect(() => {
     const layer = editorLayer.current, anchor = activeEditor.current;
@@ -154,12 +163,12 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
     if (!height || Math.abs(anchor.height - height) < 1) return;
     anchor.height = height;
     positionEditor();
-  }, [editorPosition, inlineEditor?.key]);
+  }, [editorPosition, inlineEditor?.key, inlineEditor?.height]);
   return <section className="graph-panel panel" id="graph-panel" aria-label="State graph">
-    <div className="panel-heading"><div className="panel-title"><Icon name="graph" size={17} /><h2>State graph</h2><span className="subtle">{machine ? `${machine.states.length} states · ${machine.tapes} ${machine.tapes === 1 ? 'tape' : 'tapes'}` : 'Visualization'}</span></div><div className="graph-actions">{tools}<div className="graph-view-tools" role="toolbar" aria-label="Graph view tools"><button className="icon-button" onClick={() => navigation.current?.zoom(.8)} disabled={!svg} aria-label="Zoom out" title="Zoom out"><Icon name="minus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.zoom(1.25)} disabled={!svg} aria-label="Zoom in" title="Zoom in"><Icon name="plus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.fit()} disabled={!svg} aria-label="Fit view" title="Fit view"><Icon name="fit" size={16} /></button></div><ExportDialog machine={machine} svg={svg} /></div>{actions}</div>
+    <div className="panel-heading"><div className="panel-title"><Icon name="graph" size={17} /><h2>State graph</h2><span className="subtle">{machine ? `${machine.states.length} states${Object.keys(machine.definition.groups).length ? ` · ${Object.keys(machine.definition.groups).length} ${Object.keys(machine.definition.groups).length === 1 ? 'group' : 'groups'}` : ''} · ${machine.tapes} ${machine.tapes === 1 ? 'tape' : 'tapes'}` : 'Visualization'}</span></div><div className="graph-actions">{tools}<div className="graph-view-tools" role="toolbar" aria-label="Graph view tools"><button className="icon-button" onClick={() => navigation.current?.zoom(.8)} disabled={!svg} aria-label="Zoom out" title="Zoom out"><Icon name="minus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.zoom(1.25)} disabled={!svg} aria-label="Zoom in" title="Zoom in"><Icon name="plus" size={16} /></button><button className="icon-button" onClick={() => navigation.current?.fit()} disabled={!svg} aria-label="Fit view" title="Fit view"><Icon name="fit" size={16} /></button></div><ExportDialog machine={machine} svg={svg} /></div>{actions}</div>
     {settings}
     <div className="graph-stage"><div id="graph" ref={graph} className={`graph-canvas ${addingState ? 'adding-state' : ''}`} onClick={event => {
-      if (!addingState || !svg || (event.target as Element).closest('.node, .edge, [data-graph-editor]')) return;
+      if (!addingState || !svg || (event.target as Element).closest('.node, .edge, .cluster, [data-graph-editor]')) return;
       const point = svg.createSVGPoint(); point.x = event.clientX; point.y = event.clientY;
       const local = point.matrixTransform(svg.getScreenCTM()!.inverse()); onCanvas?.({x: local.x, y: local.y});
     }} onKeyDown={event => {
@@ -185,12 +194,12 @@ export function StateGraph({machine, playback: p, onState, onEdge, selectedState
             const directions: Record<string, [number, number]> = {ArrowLeft: [-distance, 0], ArrowRight: [distance, 0], ArrowUp: [0, -distance], ArrowDown: [0, distance]};
             const direction = directions[event.key];
             if (direction) {event.preventDefault(); event.stopPropagation(); moveEditor(...direction);}
-          }}><Icon name="grip" size={14} /><span>{inlineEditor.anchor.state ? 'State' : inlineEditor.anchor.from ? 'Transition' : 'New state'}</span></button>
+          }}><Icon name="grip" size={14} /><span>{inlineEditor.anchor.state ? 'State' : inlineEditor.anchor.from ? 'Transition' : inlineEditor.anchor.group !== undefined ? (inlineEditor.anchor.group ? 'Group' : 'New group') : 'New state'}</span></button>
         <div className="graph-inline-editor">{inlineEditor.content}</div>
       </div>}
       {!svg && <div className="graph-empty"><span className="empty-graph"><i>q₀</i><span>→</span><i>q₁</i><span>→</span><i>q₂</i></span><h3>{renderError ? 'Unable to render diagram' : rendering ? 'Drawing your machine…' : 'Everything starts with a state.'}</h3><p>{renderError || (rendering ? 'Arranging states and transitions.' : 'Choose a machine from your library or import a YAML file to explore its transitions.')}</p>{!machine && <span className="empty-hint"><Icon name="library" size={14} />Your machine library is on the left</span>}</div>}
 
     </div>
-    <div className="graph-footer"><span id="graph-help">{help || <>Scroll to zoom <span>·</span> Middle drag to pan <span>·</span> Focus graph for WASD / arrows</>}</span><span className="graph-legend"><i />State <i />Accept state</span></div>
+    <div className="graph-footer"><span id="graph-help">{help || <>Scroll to zoom <span>·</span> Middle drag to pan <span>·</span> Focus graph for WASD / arrows</>}</span><span className="graph-legend"><i />State <i className="legend-group" />Group <i />Accept state</span></div>
   </section>;
 }

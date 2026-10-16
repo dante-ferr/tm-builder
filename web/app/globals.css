@@ -116,6 +116,7 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .graph-legend { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .graph-legend > i { display: inline-block; width: 8px; height: 8px; border: 1px solid var(--graph-legend); border-radius: 50%; margin-left: 6px; }
 .graph-legend > i:last-child { outline: 1px solid var(--graph-legend); outline-offset: 1px; margin-left: 12px; }
+.graph-legend > i.legend-group { width: 12px; height: 8px; border-radius: 2px; background: var(--graph-cluster-fill); border-color: var(--graph-cluster-stroke); }
 .playback-panel { flex-shrink: 0; }
 .trace-badge { font-size: 9px; color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; white-space: nowrap; }
 .trace-badge.accept { color: var(--accent); background: var(--accent-soft); }
@@ -240,6 +241,18 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 #graph .editing-node text, #graph .editing-edge text { fill: var(--accent); font-weight: 600; }
 #graph .editing-edge path, #graph .editing-edge polygon { stroke: var(--accent); stroke-width: 3; }
 #graph .editing-edge polygon { fill: var(--accent); }
+#graph .cluster > polygon, #graph .cluster > path { fill: var(--graph-cluster-fill); stroke: var(--graph-cluster-stroke); }
+#graph .cluster > text { fill: var(--graph-text); font-weight: 600; }
+#graph .cluster.editable { cursor: pointer; }
+#graph .cluster.editable:hover > polygon, #graph .cluster.edit-selected > polygon, #graph .cluster.editing-cluster > polygon,
+#graph .cluster.editable:focus > polygon, #graph .cluster.editable:hover > path, #graph .cluster.edit-selected > path,
+#graph .cluster.editing-cluster > path, #graph .cluster.editable:focus > path { stroke: var(--accent); stroke-width: 2.6px; }
+.inline-group-field { margin-top: 10px; }
+.inline-group-field select, .inline-group-name { width: 100%; }
+.inline-member-filter { margin-top: 8px; }
+.inline-members { max-height: 180px; overflow: auto; margin-top: 8px; padding-right: 4px; }
+.inline-members label { flex-direction: row; align-items: center; gap: 8px; font-size: 12px; font-weight: 450; }
+.inline-members .group-hint { color: var(--muted); font-size: 10px; font-weight: 450; }
 .graph-inline-editor { height: 100%; padding: 0; overflow: auto; color: var(--text); font: 12px/1.5 inherit; cursor: default; }
 .inline-machine-form { padding: 12px; border: 1px solid var(--accent); background: var(--surface); border-radius: 9px; }
 .inline-machine-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }

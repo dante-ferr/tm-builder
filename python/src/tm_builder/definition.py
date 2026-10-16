@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 Symbol = Annotated[str, Field(min_length=1, max_length=1)]
 State = Annotated[str, Field(min_length=1)]
+GroupName = Annotated[str, Field(min_length=1)]
+GroupStates = Annotated[list[State], Field(min_length=1)]
 Move = Literal["L", "R", "S"]
 TapeAction = Annotated[
     tuple[Symbol, Symbol, Move],
@@ -80,6 +82,8 @@ class MachineDefinition(BaseModel):
     accept: list[State]
     reject: list[State]
     inputs: list[str] | None = None
+    # Optional clusters. Each state belongs to at most one group.
+    groups: dict[GroupName, GroupStates] = Field(default_factory=dict)
     transitions: Transitions
 
     def create_machine(self, inputs: list[str] | None = None, *,
@@ -218,6 +222,20 @@ def parse_definition(source: str) -> tuple[MachineDefinition, list[Diagnostic]]:
                 issues.append(diagnostic(f"Unknown state {value!r}", (field,)))
     if set(definition.accept) & set(definition.reject):
         issues.append(diagnostic("Accept and reject states must be disjoint", ("reject",)))
+    seen_members = {}
+    for name, members in definition.groups.items():
+        listed = set()
+        for member in members:
+            if member not in states:
+                issues.append(diagnostic(f"Unknown state {member!r}", ("groups", name)))
+            elif member in listed or member in seen_members:
+                previous = seen_members.get(member, name)
+                message = (f"State {member!r} is listed more than once" if previous == name
+                           else f"State {member!r} is already in group {previous!r}")
+                issues.append(diagnostic(message, ("groups", name)))
+            else:
+                listed.add(member)
+                seen_members[member] = name
     if definition.inputs is not None:
         if len(definition.inputs) != definition.tapes:
             issues.append(diagnostic(f"inputs needs {definition.tapes} strings", ("inputs",)))

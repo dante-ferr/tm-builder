@@ -6,6 +6,7 @@ const paths = {
   cursor: 'm5 3 14 9-7 1-3 7Z',
   state: 'M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0M12 9v6m-3-3h6',
   transition: 'M4 17C4 6 12 6 20 6m-4-4 4 4-4 4',
+  group: 'M4 5h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 12h.01M12 12h.01M16 12h.01',
   settings: 'M4 7h16M4 17h16M8 4v6m8 4v6',
   check: 'm5 12 4 4L19 6', trash: 'M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7',
   chevron: 'm6 9 6 6 6-6',

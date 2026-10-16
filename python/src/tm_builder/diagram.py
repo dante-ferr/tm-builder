@@ -15,10 +15,25 @@ def machine_diagram(definition: MachineDefinition) -> Digraph:
     identifiers = {state: f"state_{i}" for i, state in enumerate(definition.states)}
     start_id = "start_arrow"
     graph.node(start_id, shape="point", label="")
+
+    def add_state(target, state):
+        target.node(identifiers[state], label=escape(state), id=identifiers[state],
+                    shape="doublecircle" if state in definition.accept else "circle",
+                    color="#d14c49" if state in definition.reject else "#64748b")
+
+    # Subgraph names must start with "cluster" or Graphviz will not draw the box.
+    grouped = set()
+    for index, (name, members) in enumerate(definition.groups.items()):
+        with graph.subgraph(name=f"cluster_{index}") as cluster:
+            cluster.attr(label=escape(name), id=f"group_{index}", labelloc="t",
+                         style="rounded,filled", color="#8b93b8", fillcolor="#e4e7f4",
+                         fontname="Helvetica", fontsize="13", fontcolor="#202236", penwidth="1.6")
+            for state in members:
+                add_state(cluster, state)
+                grouped.add(state)
     for state in definition.states:
-        graph.node(identifiers[state], label=escape(state), id=identifiers[state],
-                   shape="doublecircle" if state in definition.accept else "circle",
-                   color="#d14c49" if state in definition.reject else "#64748b")
+        if state not in grouped:
+            add_state(graph, state)
     graph.edge(start_id, identifiers[definition.start])
     edges = defaultdict(list)
     for t in definition.transitions:

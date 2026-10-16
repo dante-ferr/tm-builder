@@ -199,6 +199,21 @@
       "default": null,
       "title": "Inputs"
     },
+    "groups": {
+      "additionalProperties": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "propertyNames": {
+        "minLength": 1
+      },
+      "title": "Groups",
+      "type": "object"
+    },
     "transitions": {
       "anyOf": [
         {

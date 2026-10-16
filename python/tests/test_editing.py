@@ -88,6 +88,16 @@ class EditingTests(unittest.TestCase):
         result = edit_yaml(SOURCE, {'transitions': rules})
         self.assertEqual(parse_definition(result)[0].transitions[0].tapes[0][2], 'S')
 
+    def test_group_edits_keep_compact_lists_and_other_fields(self):
+        source = (Path(__file__).parents[2] / 'data/examples/machines/state_groups.yaml').read_text()
+        renamed = edit_yaml(source, {'name': 'Renamed groups'})
+        self.assertIn('Read: [scan, step]', renamed)
+        self.assertIn('Halt: [accept, reject]', renamed)
+        moved = edit_yaml(source, {'groups': {'Scan': ['scan', 'step', 'accept'], 'Halt': ['reject']}})
+        self.assertIn('Scan: [scan, step, accept]', moved)
+        self.assertEqual(parse_definition(moved)[0].groups['Halt'], ['reject'])
+        self.assertIn('# Optional groups', moved)
+
     def test_invalid_edits_do_not_write(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'copy.yaml'

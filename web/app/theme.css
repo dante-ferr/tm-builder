@@ -49,6 +49,8 @@
   --graph-active-text: #37337f;
   --graph-rule: #d28a20;
   --graph-rule-text: #8a5b16;
+  --graph-cluster-fill: #e4e7f4;
+  --graph-cluster-stroke: #8b93b8;
 }
 
 .workspace-shell[data-theme="dark"] {
@@ -95,6 +97,8 @@
   --graph-active-text: #e5e4ff;
   --graph-rule: #f2bd67;
   --graph-rule-text: #f5d58e;
+  --graph-cluster-fill: #262838;
+  --graph-cluster-stroke: #9aa0c0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -142,5 +146,7 @@
     --graph-active-text: #e5e4ff;
     --graph-rule: #f2bd67;
     --graph-rule-text: #f5d58e;
+    --graph-cluster-fill: #262838;
+    --graph-cluster-stroke: #9aa0c0;
   }
 }

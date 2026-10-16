@@ -13,6 +13,20 @@ from tm_builder.simulation import simulate
 from tm_builder.execution_limits import budget_for_sample
 
 ROOT = Path(__file__).resolve().parents[2]
+LOOP = """
+name: Loop
+model: deterministic
+tapes: 1
+blank: _
+input_alphabet: []
+tape_alphabet: [_]
+states: [loop]
+start: loop
+accept: []
+reject: []
+transitions:
+  - {from: loop, tapes: [[_, _, S]], to: loop}
+"""
 
 
 class PlaybackTests(unittest.TestCase):
@@ -21,7 +35,7 @@ class PlaybackTests(unittest.TestCase):
 
     def test_rule_trace_matches_writes_and_head_moves(self):
         definition = self.load('copy.yaml')
-        setup = parse_inputs((ROOT / 'data/examples/inputs/copy_preloaded.yaml').read_text(), definition)
+        setup = parse_inputs('tapes:\n  - {contents: abba, origin: -2, head: -2}\n  - {contents: _bb, head: 4}\n', definition)
         result = simulate(definition, setup=setup)
         self.assertEqual(result['status'], 'ACCEPT')
         self.assertNotIn('transition', result['frames'][0])
@@ -38,7 +52,7 @@ class PlaybackTests(unittest.TestCase):
         halted = simulate(self.load('halt.yaml'))
         self.assertEqual(halted['status'], 'HALT')
         self.assertIn('No transition', halted['reason'])
-        loop = simulate(self.load('loop.yaml'), max_steps=3)
+        loop = simulate(parse_definition(LOOP)[0], max_steps=3)
         self.assertEqual(loop['status'], 'RUNNING')
         self.assertEqual([f['step'] for f in loop['frames']], [0, 1, 2, 3])
         self.assertIn('limit', loop['reason'])
@@ -92,7 +106,7 @@ class PlaybackTests(unittest.TestCase):
 
     def test_compact_trace_replays_exactly_like_snapshots(self):
         definition = self.load('copy.yaml')
-        setup = parse_inputs((ROOT / 'data/examples/inputs/copy_preloaded.yaml').read_text(), definition)
+        setup = parse_inputs('tapes:\n  - {contents: abba, origin: -2, head: -2}\n  - {contents: _bb, head: 4}\n', definition)
         expected = simulate(definition, setup=setup)
         compact = simulate(definition, setup=setup, compact=True)
         self.assertEqual(compact['configuration'], expected['configuration'])
@@ -109,7 +123,7 @@ class PlaybackTests(unittest.TestCase):
                                   for offset in range(17)], frame['cells'])
 
     def test_infinite_machine_stops_at_user_limit(self):
-        result = simulate(self.load('loop.yaml'), max_steps=12000)
+        result = simulate(parse_definition(LOOP)[0], max_steps=12000)
         self.assertEqual(result['status'], 'RUNNING')
         self.assertIn('limit', result['reason'])
         self.assertEqual(result['configuration']['step'], 12000)

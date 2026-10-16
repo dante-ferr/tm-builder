@@ -4,6 +4,7 @@ from pathlib import Path
 import unittest
 
 from tm_builder.definition import parse_definition
+from tm_builder.diagram import machine_diagram
 from tm_builder.inputs import parse_inputs
 from tm_builder.simulation import simulate
 
@@ -23,7 +24,7 @@ class ExampleTests(unittest.TestCase):
         definition = self.load('copy.yaml')
         normal = self.setup('copy.yaml', definition)
         self.assertEqual(simulate(definition, setup=normal)['status'], 'ACCEPT')
-        preloaded = self.setup('copy_preloaded.yaml', definition)
+        preloaded = parse_inputs('tapes:\n  - {contents: abba, origin: -2, head: -2}\n  - {contents: _bb, head: 4}\n', definition)
         machine = definition.create_machine(setup=preloaded)
         self.assertEqual(machine.run(), 'ACCEPT')
         self.assertEqual(''.join(machine.tapes[1].cells[i] for i in range(4, 8)), 'abba')
@@ -42,13 +43,33 @@ class ExampleTests(unittest.TestCase):
         self.assertEqual(simulate(self.load('nondeterministic_contains_one.yaml'), ['10'])['status'], 'ACCEPT')
 
     def test_examples_without_inputs(self):
-        writer = self.load('blank_writer.yaml').create_machine()
-        self.assertEqual(writer.run(), 'ACCEPT')
-        self.assertEqual(writer.tapes[0].cells, {0: 'x', -1: 'x'})
         self.assertEqual(simulate(self.load('halt.yaml'))['status'], 'HALT')
-        looping = simulate(self.load('loop.yaml'), max_steps=3)
-        self.assertEqual(looping['status'], 'RUNNING')
-        self.assertEqual(looping['configuration']['step'], 3)
+
+    def test_state_groups_and_four_group_ring(self):
+        grouped = self.load('state_groups.yaml')
+        self.assertEqual(list(grouped.groups), ['Read', 'Halt'])
+        self.assertEqual(simulate(grouped, ['a'])['status'], 'ACCEPT')
+        self.assertEqual(simulate(grouped, ['aa'])['status'], 'ACCEPT')
+        self.assertEqual(simulate(grouped, [''])['status'], 'REJECT')
+        self.assertEqual(machine_diagram(grouped).source.count('subgraph cluster_'), 2)
+        ring = self.load('four_groups.yaml')
+        self.assertEqual(list(ring.groups), ['North', 'East', 'South', 'West'])
+        self.assertEqual(machine_diagram(ring).source.count('subgraph cluster_'), 4)
+        home = {state: name for name, members in ring.groups.items() for state in members}
+        neighbors = {}
+        for rule in ring.transitions:
+            left, right = home[rule.source], home[rule.to]
+            if left == right:
+                continue
+            neighbors.setdefault(left, set()).add(right)
+            neighbors.setdefault(right, set()).add(left)
+        self.assertEqual({name: len(linked) for name, linked in neighbors.items()},
+                         {'North': 2, 'East': 2, 'South': 2, 'West': 2})
+        setup = self.setup('four_groups.yaml', ring)
+        accepted = simulate(ring, setup=setup)
+        self.assertEqual(accepted['status'], 'ACCEPT')
+        self.assertEqual(accepted['configuration']['step'], 3)
+        self.assertEqual(simulate(ring, [''])['status'], 'HALT')
 
     def test_binary_counter_stress_trace(self):
         definition = self.load('binary_counter.yaml')

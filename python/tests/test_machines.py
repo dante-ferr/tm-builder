@@ -176,6 +176,24 @@ class MachineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             simulate(definition, ['xyz', ''])
 
+    def test_state_groups_are_optional_clusters(self):
+        ungrouped, _ = parse_definition(SOURCE)
+        self.assertEqual(ungrouped.groups, {})
+        self.assertNotIn('subgraph', machine_diagram(ungrouped).source)
+        source = (Path(__file__).parents[2] / 'data/examples/machines/state_groups.yaml').read_text()
+        definition, warnings = parse_definition(source)
+        self.assertEqual(warnings, [])
+        self.assertEqual(list(definition.groups), ['Read', 'Halt'])
+        dot = machine_diagram(definition).source
+        self.assertIn('subgraph cluster_0', dot)
+        self.assertIn('id=group_0', dot)
+        self.assertIn('label=Read', dot)
+        self.assertIn('subgraph cluster_1', dot)
+        self.assert_invalid(source.replace('Read: [scan, step]', 'Read: [scan, missing]'), "Unknown state 'missing'")
+        self.assert_invalid(source.replace('Halt: [accept, reject]', 'Halt: [accept, step]'), "already in group 'Read'")
+        self.assert_invalid(source.replace('Read: [scan, step]', 'Read: [scan, scan]'), 'listed more than once')
+        self.assert_invalid(source.replace('Read: [scan, step]', 'Read: []'), 'at least 1')
+
     def test_graph_uses_definition_with_safe_node_ids(self):
         definition, _ = parse_definition(SOURCE.replace('copy', 'copy:scan'))
         dot = machine_diagram(definition).source

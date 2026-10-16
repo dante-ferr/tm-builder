@@ -1,0 +1,19 @@
+# Optional groups draw one cluster per list. A state belongs to at most one group.
+name: State groups
+model: deterministic
+tapes: 1
+blank: _
+input_alphabet: [a]
+tape_alphabet: [a, _]
+states: [scan, step, accept, reject]
+start: scan
+accept: [accept]
+reject: [reject]
+groups:
+  Read: [scan, step]
+  Halt: [accept, reject]
+transitions:
+  - {from: scan, tapes: [[a, a, R]], to: step}
+  - {from: scan, tapes: [[_, _, S]], to: reject}
+  - {from: step, tapes: [[a, a, R]], to: step}
+  - {from: step, tapes: [[_, _, S]], to: accept}
