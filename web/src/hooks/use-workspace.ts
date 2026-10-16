@@ -18,7 +18,7 @@ function machineNotice(diagram: Diagram | null, action: {kind: IssueKind; messag
 }
 export function useWorkspace() {
   const [diagram, setDiagram] = useState<Diagram | null>(null);
-  const [library, setLibrary] = useState<Library>({machines: [], inputs: []});
+  const [library, setLibrary] = useState<Library>({machines: [], inputs: [], hosted: false});
   const [setup, setSetup] = useState('tapes: []');
   const [input, setInput] = useState('');
   const [maxSteps, setMaxSteps] = useState(1_000_000);
@@ -228,7 +228,7 @@ export function useWorkspace() {
     finally { if (!controller.signal.aborted && token === simulation.current) setRunning(false); }
   }
   return {
-    diagram, machine: diagram?.valid ? diagram : null, library, setup, input, maxSteps, maximumSteps, trace, message,
+    diagram, machine: diagram?.valid ? diagram : null, library, hosted: library.hosted === true, setup, input, maxSteps, maximumSteps, trace, message,
     machineError: machineNotice(diagram, actionIssue),
     systemError: connectionError || libraryError || (actionIssue?.kind === 'system' ? actionIssue.message : ''),
     connected, selecting, running, saving, opening, historyGeneration, changeHistory, createMachine, editMachine, selectMachine, selectInput, changeSetup, importFile, openWorkspace, run,

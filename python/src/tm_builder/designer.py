@@ -21,7 +21,7 @@ from tm_builder.diagram import machine_diagram
 from tm_builder.inputs import parse_inputs
 from tm_builder.simulation import simulate
 from tm_builder.execution_limits import execution_limits
-from tm_builder.workspace import INPUT_EXAMPLES, MACHINE_EXAMPLES, ensure_workspace, open_in_editor
+from tm_builder.workspace import EXAMPLES, INPUT_EXAMPLES, MACHINE_EXAMPLES, ensure_workspace, open_in_editor
 
 PROJECT = Path(__file__).resolve().parents[3]
 WEB_PROJECT = PROJECT / 'web'
@@ -50,11 +50,26 @@ def ensure_assets():
         raise RuntimeError('Asset build failed. Run npm run build in the web directory.') from error
 
 
+def hosted():
+    """True when this process is the public Render app, not a local viewer."""
+    return bool(_render_url())
+
+
 def library_files(kind):
-    """List YAML files in the user's machine or input workspace."""
+    """List YAML files in the user's machine or input workspace.
+
+    The hosted app lists bundled examples only. It does not read or create a
+    user workspace.
+    """
     if kind not in ('machines', 'inputs'):
         raise ValueError('Unknown library')
-    examples = set(MACHINE_EXAMPLES if kind == 'machines' else INPUT_EXAMPLES)
+    names = MACHINE_EXAMPLES if kind == 'machines' else INPUT_EXAMPLES
+    if hosted():
+        folder = EXAMPLES / kind
+        return [{'filename': name, 'example': True}
+                for name in sorted(names)
+                if (folder / name).is_file() and not (folder / name).is_symlink()]
+    examples = set(names)
     folder = ensure_workspace() / kind
     return [{'filename': path.name, 'example': path.name in examples}
             for path in sorted(folder.iterdir())
@@ -65,7 +80,8 @@ def library_files(kind):
 def library_path(kind, filename):
     if not isinstance(filename, str) or filename not in {entry['filename'] for entry in library_files(kind)}:
         raise ValueError('File is not in the library')
-    return ensure_workspace() / kind / filename
+    root = EXAMPLES if hosted() else ensure_workspace()
+    return root / kind / filename
 
 
 class DiagramSource:
@@ -218,6 +234,8 @@ class DiagramSource:
         return target
 
     def create(self, data, workspace):
+        if hosted():
+            raise ValueError('The hosted app cannot create workspace files. Import a YAML file, then use Save YAML to keep your edits.')
         name = data.get('name')
         if not isinstance(name, str) or not name.strip():
             raise ValueError('Enter a machine name.')
@@ -232,6 +250,8 @@ class DiagramSource:
 
     def open_workspace(self):
         """Wait for an in-progress disk write, then open the workspace in VS Code."""
+        if hosted():
+            raise ValueError('Opening a workspace folder is only available in the local viewer.')
         self.lock.acquire()
         self.lock.release()
         open_in_editor()
@@ -327,8 +347,9 @@ def _origin_matches(header, expected):
 
 
 def create_server(machine_path: Path | None = None, port=8765, workspace: Path | None = None):
-    workspace = workspace or ensure_workspace()
-    if machine_path is not None and not machine_path.exists() and not machine_path.is_absolute():
+    if workspace is None and not hosted():
+        workspace = ensure_workspace()
+    if workspace is not None and machine_path is not None and not machine_path.exists() and not machine_path.is_absolute():
         candidate = workspace / 'machines' / machine_path.name
         if candidate.exists():
             machine_path = candidate
@@ -380,7 +401,9 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
             route = urlparse(self.path).path
             try:
                 if route == '/api/library':
-                    self.respond({kind: library_files(kind) for kind in ('machines', 'inputs')})
+                    library = {kind: library_files(kind) for kind in ('machines', 'inputs')}
+                    library['hosted'] = hosted()
+                    self.respond(library)
                 elif route == '/api/input':
                     filename = parse_qs(urlparse(self.path).query).get('filename', [''])[0]
                     self.respond({'source': library_path('inputs', filename).read_text()})
@@ -473,7 +496,12 @@ def create_server(machine_path: Path | None = None, port=8765, workspace: Path |
                             raise ValueError('Expected a filename without directories')
                         source.select(source=data['source'], filename=filename)
                     else:
-                        source.select(library_path('machines', data.get('filename')))
+                        path = library_path('machines', data.get('filename'))
+                        # Hosted edits stay in memory so example files are never overwritten.
+                        if hosted():
+                            source.select(source=path.read_text(), filename=path.name)
+                        else:
+                            source.select(path)
                     self.respond(source.snapshot())
                     return
                 if self.path == '/api/simulate':
@@ -495,13 +523,13 @@ def serve(machine_path: Path | None = None, port=8765, open_browser=True):
     # the Next dev server is starting.
     if not os.environ.get('TM_BUILDER_DEV_ORIGIN'):
         ensure_assets()
-    workspace = ensure_workspace()
-    _bind_host, port, open_browser = viewer_listen(port, open_browser)
     public = _render_url()
+    workspace = None if public else ensure_workspace()
+    _bind_host, port, open_browser = viewer_listen(port, open_browser)
     server = create_server(machine_path, port, workspace)
     if public:
         print(f'Diagram: {public}\nListening: 0.0.0.0:{server.server_port}\n'
-              f'Workspace: {workspace}\nWatching: {machine_path or workspace / "machines"}\n'
+              f'Examples only. UI edits stay in memory; use Save YAML to download them.\n'
               f'Press Ctrl+C to stop.', flush=True)
     else:
         url = f'http://127.0.0.1:{server.server_port}'

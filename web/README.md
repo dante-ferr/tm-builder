@@ -114,6 +114,12 @@ rather than overwrite another editor's work. Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, and
 matching Cmd shortcuts work outside editable inputs, with icon buttons in the
 graph toolbar as well.
 
+The local viewer autosaves graph edits to the selected workspace file. The hosted
+app (`RENDER_EXTERNAL_URL`) lists bundled examples only, loads a selected example
+or an imported YAML file into memory, and does not write those edits. **Save YAML**
+downloads the current machine. `POST /api/create` and `POST /api/open-workspace`
+are refused while hosted. `GET /api/library` includes `hosted`.
+
 **Open workspace folder** in the state graph header calls `POST /api/open-workspace`.
 The API waits until any in-progress machine write finishes, then opens the
 workspace file with the application associated with it. Set `CODE` to an editor

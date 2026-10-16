@@ -236,6 +236,7 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
 .graph-edit-tools, .graph-view-tools { display: flex; align-items: center; gap: 3px; }
 .graph-edit-tools { padding-right: 8px; border-right: 1px solid var(--line); }
 .graph-edit-tools .icon-button, .graph-view-tools .icon-button { width: 31px; height: 31px; }
+.graph-edit-tools .save-yaml { width: auto; gap: 6px; padding-inline: 8px; }
 .graph-edit-tools [aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .graph-footer { min-height: 36px; font-size: 10px; }
 .graph-canvas.adding-state { cursor: crosshair; }
@@ -299,6 +300,7 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -1px; margin-bottom: 9px
   .page-actions { margin-left: auto; border-left: 0; padding-left: 0; }
   .graph-edit-tools { padding-right: 4px; }
   .graph-edit-tools .icon-button, .graph-view-tools .icon-button { width: 28px; }
+  .graph-edit-tools .save-yaml { width: auto; }
   .graph-edit-tools, .graph-view-tools { gap: 0; }
   .inline-settings-grid { grid-template-columns: 1fr 1fr; }
   .dock-summary > span:first-child:not(.trace-badge) { display: none; }

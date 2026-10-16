@@ -68,9 +68,12 @@ select and edit a state, connection, or group, add a state by clicking empty can
 add a group and choose its states, or create a transition by selecting its source
 and destination. Edit state properties
 and per-tape read/write/move fields in place; Enter or the checkmark saves to YAML.
-Use the settings icon for model, alphabets, blank, and tape count. Imported files
-stay in memory; download YAML to keep their changes. Save unsaved VS Code buffers
-before UI edits. Playback and debugger controls expand from the bottom bar when
+Use the settings icon for model, alphabets, blank, and tape count. The local viewer
+autosaves those edits to the selected workspace file. Imported files stay in memory;
+download YAML to keep their changes. Save unsaved VS Code buffers
+before UI edits. The hosted app does not use a workspace: it lists bundled examples,
+keeps UI edits in memory, and offers **Save YAML** to download the machine. It does
+not create files or open a workspace folder. Playback and debugger controls expand from the bottom bar when
 you load a trace, and can be collapsed to give the graph more room.
 
 Use **New machine** (+) in the library to create a workspace YAML file with one

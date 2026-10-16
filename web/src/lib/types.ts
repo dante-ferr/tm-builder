@@ -26,7 +26,7 @@ export interface Machine extends Snapshot {
 }
 export type Diagram = Machine | (Snapshot & {valid: false});
 export interface LibraryEntry {filename: string; example: boolean}
-export interface Library {machines: LibraryEntry[]; inputs: LibraryEntry[]}
+export interface Library {machines: LibraryEntry[]; inputs: LibraryEntry[]; hosted?: boolean}
 export interface MachineSource {filename: string; source?: string}
 export interface Transition {index: number; source: string; to: string; tapes: [string, string, 'L' | 'R' | 'S'][]}
 export interface Tape {head: number; left: number; cells: string[]}

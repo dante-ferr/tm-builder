@@ -24,14 +24,14 @@ export function LibraryPanel({workspace: w}: {workspace: WorkspaceController}) {
   const [newFilename, setNewFilename] = useState('new-machine.yaml');
   const [customFilename, setCustomFilename] = useState(false);
   const [hideExamples, setHideExamples] = useState(false);
-  const machineFilename = w.machine?.mode === 'Imported file' ? '' : w.diagram?.path.split('/').pop() || '';
-  const machines = w.library.machines.filter(entry => !hideExamples || !entry.example);
-  const inputs = w.library.inputs.filter(entry => !hideExamples || !entry.example);
+  const machineFilename = !w.hosted && w.machine?.mode === 'Imported file' ? '' : w.diagram?.path.split(/[/\\]/).pop() || '';
+  const machines = w.library.machines.filter(entry => w.hosted || !hideExamples || !entry.example);
+  const inputs = w.library.inputs.filter(entry => w.hosted || !hideExamples || !entry.example);
   return <aside className="sidebar" aria-label="Workspace setup">
     <a className="brand" href="/" aria-label="TMBuilder home"><span className="brand-mark" aria-hidden="true"><span className="brand-logo" /></span><span><strong>TMBuilder<span className="brand-period">.</span></strong><small>A playground for computation</small></span></a>
-    <div className="sidebar-caption">YOUR WORKSPACE</div>
+    <div className="sidebar-caption">{w.hosted ? 'EXAMPLES' : 'YOUR WORKSPACE'}</div>
     <section className="sidebar-section" aria-labelledby="library-title">
-      <div className="section-heading"><Icon name="library" /><h2 id="library-title">Machine library</h2><span className="count">{machines.length}</span><button className="icon-button" title="Create machine" aria-label="New machine" aria-expanded={creating} disabled={!w.connected || w.selecting || w.saving} onClick={() => setCreating(value => !value)}><Icon name="plus" size={16} /></button></div>
+      <div className="section-heading"><Icon name="library" /><h2 id="library-title">Machine library</h2><span className="count">{machines.length}</span>{!w.hosted && <button className="icon-button" title="Create machine" aria-label="New machine" aria-expanded={creating} disabled={!w.connected || w.selecting || w.saving} onClick={() => setCreating(value => !value)}><Icon name="plus" size={16} /></button>}</div>
       {creating && <form className="create-machine-form" aria-label="Create machine" onSubmit={async event => {
         event.preventDefault();
         if (await w.createMachine(newName, newFilename)) {setCreating(false); setNewName(''); setNewFilename('new-machine.yaml'); setCustomFilename(false);}
@@ -42,7 +42,7 @@ export function LibraryPanel({workspace: w}: {workspace: WorkspaceController}) {
       </form>}
       <label>Machine<select id="machine-select" value={machines.some(entry => entry.filename === machineFilename) ? machineFilename : ''} disabled={w.selecting || w.saving} onChange={event => {if (event.target.value) void w.selectMachine({filename: event.target.value});}}><option value="">Choose a machine…</option>{machines.map(entry => <option key={entry.filename} value={entry.filename}>{entry.filename}{entry.example ? ' · example' : ''}</option>)}</select></label>
       <label className="file-upload"><Icon name="upload" size={15} /><span>Import machine YAML</span><input id="machine-file" type="file" accept=".yaml,.yml" disabled={w.selecting || w.saving} onChange={event => {const file = event.target.files?.[0]; if (file) void w.importFile(file, 'machine'); event.target.value = '';}} /></label>
-      <label className="inline-check"><input type="checkbox" checked={hideExamples} onChange={event => setHideExamples(event.target.checked)} />Hide bundled examples</label>
+      {!w.hosted && <label className="inline-check"><input type="checkbox" checked={hideExamples} onChange={event => setHideExamples(event.target.checked)} />Hide bundled examples</label>}
     </section>
     <section className="sidebar-section" aria-labelledby="setup-title">
       <div className="section-heading"><Icon name="tape" /><h2 id="setup-title">Starting tapes</h2></div>
@@ -56,6 +56,6 @@ export function LibraryPanel({workspace: w}: {workspace: WorkspaceController}) {
       </form>
     </section>
     {setupOpen && <div className="setup-overlay" role="presentation" onMouseDown={event => {if (event.target === event.currentTarget) setSetupOpen(false);}}><section className="setup-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-dialog-title"><div className="export-heading"><div><p className="eyebrow">STARTING CONFIGURATION</p><h2 id="setup-dialog-title">Edit tapes</h2></div><button type="button" className="icon-button" aria-label="Close setup editor" onClick={() => setSetupOpen(false)}><Icon name="close" /></button></div><p className="help">Enter tape symbols and cell positions. Values are saved as YAML automatically.</p><div className="setup-tapes">{tapes.map((tape, index) => <fieldset className="setup-tape" key={index}><legend>Tape {index + 1}</legend><label>Contents<input aria-label={`Tape ${index + 1} contents`} value={tape.contents} onChange={event => setTapes(current => current.map((item, i) => i === index ? {...item, contents: event.target.value} : item))} placeholder="Leave empty for a blank tape" /></label><div className="setup-number-fields">{(['origin', 'head'] as const).map(field => <label key={field}>{field === 'origin' ? 'Origin cell' : 'Head position'}<input type="number" step={1} value={tape[field]} onChange={event => setTapes(current => current.map((item, i) => i === index ? {...item, [field]: event.target.valueAsNumber || 0} : item))} /></label>)}</div></fieldset>)}</div><div className="setup-actions"><button type="button" onClick={() => setSetupOpen(false)}>Cancel</button><button type="button" className="primary" onClick={() => {const active = tapes.slice(0, Math.max(1, tapes.findLastIndex(tape => tape.contents || tape.origin !== 0 || tape.head !== 0) + 1)); const yaml = active.length ? `tapes:\n${active.map(tape => `  - contents: ${JSON.stringify(tape.contents)}\n    origin: ${tape.origin}\n    head: ${tape.head}`).join('\n')}` : 'tapes: []'; w.changeSetup(yaml); setSetupOpen(false);}}>Apply setup</button></div></section></div>}
-    <div className="sidebar-bottom"><span className={`connection-dot ${w.connected ? 'connected' : ''}`} />{w.connected ? 'Connected to local workspace' : 'Connecting to workspace…'}<p>Small machines. Infinite possibilities.</p></div>
+    <div className="sidebar-bottom"><span className={`connection-dot ${w.connected ? 'connected' : ''}`} />{w.connected ? (w.hosted ? 'Connected' : 'Connected to local workspace') : (w.hosted ? 'Connecting…' : 'Connecting to workspace…')}<p>{w.hosted ? 'Import a machine, edit it here, then save the YAML.' : 'Small machines. Infinite possibilities.'}</p></div>
   </aside>;
 }

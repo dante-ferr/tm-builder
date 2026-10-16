@@ -89,11 +89,56 @@ class LibraryTests(unittest.TestCase):
             self.assertEqual(imported['mode'], 'Imported file')
             self.assertEqual(request('POST', '/api/simulate', {'revision': selected['revision']})[0], 400)
             self.assertEqual(request('GET', '/api/library', headers={'Origin': 'https://example.com'})[0], 403)
+            self.assertFalse(library['hosted'])
         finally:
             connection.close()
             server.shutdown()
             server.server_close()
             thread.join()
+
+    def test_hosted_app_keeps_examples_in_memory_and_refuses_workspace_actions(self):
+        example = ROOT / 'data/examples/machines/copy.yaml'
+        original = example.read_text()
+        with tempfile.TemporaryDirectory() as directory:
+            personal = Path(directory) / 'machines'
+            personal.mkdir()
+            (personal / 'personal.yaml').write_text(original)
+            with patch.dict('os.environ', {'RENDER_EXTERNAL_URL': 'https://tm-builder.onrender.com'}), \
+                    patch('tm_builder.designer.ensure_workspace', return_value=Path(directory)):
+                server = create_server(port=0)
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                connection = HTTPConnection('127.0.0.1', server.server_port)
+
+                def request(method, path, data=None):
+                    connection.request(method, path, json.dumps(data) if data is not None else None,
+                                       {'Content-Type': 'application/json'} if data is not None else {})
+                    response = connection.getresponse()
+                    return response.status, json.loads(response.read())
+
+                try:
+                    status, library = request('GET', '/api/library')
+                    self.assertEqual(status, 200)
+                    self.assertTrue(library['hosted'])
+                    self.assertIn({'filename': 'copy.yaml', 'example': True}, library['machines'])
+                    self.assertIn({'filename': 'binary.yaml', 'example': True}, library['inputs'])
+                    self.assertNotIn('personal.yaml', {entry['filename'] for entry in library['machines']})
+                    self.assertTrue(all(entry['example'] for entry in library['machines']))
+                    status, selected = request('POST', '/api/machine', {'filename': 'copy.yaml'})
+                    self.assertEqual(selected['mode'], 'Imported file')
+                    status, edited = request('POST', '/api/edit', {'revision': selected['revision'], 'changes': {'name': 'Hosted edit'}})
+                    self.assertEqual(status, 200)
+                    self.assertEqual(edited['name'], 'Hosted edit')
+                    self.assertEqual(example.read_text(), original)
+                    self.assertIn('Hosted edit', edited['source'])
+                    self.assertEqual(request('POST', '/api/create', {'name': 'New', 'filename': 'new.yaml'})[0], 400)
+                    self.assertEqual(request('POST', '/api/open-workspace', {})[0], 400)
+                    self.assertFalse((personal / 'new.yaml').exists())
+                finally:
+                    connection.close()
+                    server.shutdown()
+                    server.server_close()
+                    thread.join()
 
     def test_http_serves_static_export_files_and_rejects_workspace_paths(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -288,11 +333,12 @@ class LibraryTests(unittest.TestCase):
             'PORT': '10000',
         }):
             with (patch('tm_builder.designer.ensure_assets'),
-                  patch('tm_builder.designer.ensure_workspace', return_value=ROOT),
+                  patch('tm_builder.designer.ensure_workspace', return_value=ROOT) as workspace,
                   patch('tm_builder.designer.create_server', return_value=server) as created,
                   patch('tm_builder.designer.threading.Timer') as timer):
                 serve(None, 9000, True)
-        created.assert_called_once_with(None, 10000, ROOT)
+        workspace.assert_not_called()
+        created.assert_called_once_with(None, 10000, None)
         timer.assert_not_called()
 
     def test_render_cli_port_is_used_when_port_env_is_absent(self):
@@ -301,11 +347,12 @@ class LibraryTests(unittest.TestCase):
         with patch.dict('os.environ', {'RENDER_EXTERNAL_URL': 'https://tm-builder.onrender.com'}):
             os.environ.pop('PORT', None)
             with (patch('tm_builder.designer.ensure_assets'),
-                  patch('tm_builder.designer.ensure_workspace', return_value=ROOT),
+                  patch('tm_builder.designer.ensure_workspace', return_value=ROOT) as workspace,
                   patch('tm_builder.designer.create_server', return_value=server) as created,
                   patch('tm_builder.designer.threading.Timer') as timer):
                 serve(None, 9000, True)
-        created.assert_called_once_with(None, 9000, ROOT)
+        workspace.assert_not_called()
+        created.assert_called_once_with(None, 9000, None)
         timer.assert_not_called()
 
     def test_cli_render_port_overrides_explicit_port_and_skips_browser(self):

@@ -26,7 +26,8 @@ command; edit files under `machines/`. If the `code` command is unavailable, pas
 `CODE=/path/to/code` to setup and open-workspace. The viewer's **Open workspace
 folder** button opens the same file with the application associated with it on
 Windows, macOS, and Linux, after the current machine file is saved. Set `CODE`
-to choose that editor explicitly.
+to choose that editor explicitly. The hosted app does not open a workspace or autosave.
+It lists bundled examples, keeps UI edits in memory, and downloads them with **Save YAML**.
 Set `TM_BUILDER_WORKSPACE` to a full path before setup, or before starting the
 viewer, to replace that Documents location. To use a
 shared Git repository, initialize Git in the workspace and add a remote, or
