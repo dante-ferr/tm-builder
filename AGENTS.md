@@ -18,7 +18,7 @@ starting tape options:
   `python/tests/test_examples.py`. Use a step limit for looping examples.
 - Add new bundled files to the explicit allowlist in `.gitignore`; personal
   machine definitions and input files must remain ignored.
-- Keep the README's examples table accurate and concise. Document implemented
+- Keep the examples table in `docs/src/tm-builder/machines.md` accurate and concise. Document implemented
   behavior; avoid lengthy tutorials and speculative future features.
 - Regenerate schemas with `make schemas` when model fields or syntax change, and
   run the relevant checks from `CONTRIBUTING.md`.

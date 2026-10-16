@@ -1,7 +1,11 @@
 .DEFAULT_GOAL := help
 
 POETRY ?= poetry
+ifeq ($(OS),Windows_NT)
+NPM ?= npm.cmd
+else
 NPM ?= npm
+endif
 CODE ?= code
 PYTHON := $(POETRY) --project python run
 TM_BUILDER := $(PYTHON) tm-builder
@@ -46,8 +50,7 @@ help:
 
 setup: python-install web-install editor-install build
 	$(TM_BUILDER) workspace
-	@if command -v "$(CODE)" >/dev/null 2>&1; then $(MAKE) install-extension; \
-	else echo 'VS Code CLI not found; run make install-extension after installing the code command.'; fi
+	$(TM_BUILDER) install-extension --code "$(CODE)" --if-available --package
 
 setup-formal:
 	./scripts/setup-formal-deps.sh
@@ -57,13 +60,13 @@ python-install:
 
 web/node_modules/.dependencies-ready: web/package.json web/package-lock.json
 	$(NPM) --prefix web ci --no-audit --no-fund
-	@touch $@
+	@node -e "require('fs').writeFileSync('web/node_modules/.dependencies-ready','')"
 
 web-install: web/node_modules/.dependencies-ready
 
 editors/vscode/node_modules/.dependencies-ready: editors/vscode/package.json editors/vscode/package-lock.json
 	$(NPM) --prefix editors/vscode ci --no-audit --no-fund
-	@touch $@
+	@node -e "require('fs').writeFileSync('editors/vscode/node_modules/.dependencies-ready','')"
 
 editor-install: editors/vscode/node_modules/.dependencies-ready
 
@@ -74,8 +77,7 @@ extension: editor-install
 	$(NPM) --prefix editors/vscode run package
 
 install-extension: extension
-	@$(CODE) --uninstall-extension teocomp-local.teocomp-machines >/dev/null 2>&1 || true
-	$(CODE) --install-extension dist/tm-builder-vscode.vsix --force
+	$(TM_BUILDER) install-extension --code "$(CODE)"
 
 open-workspace:
 	$(CODE) "$$($(TM_BUILDER) workspace)"

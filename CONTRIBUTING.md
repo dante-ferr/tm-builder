@@ -2,9 +2,9 @@
 
 Contributions that improve machine definitions, correctness, and course usability
 are welcome. Bundled examples under `data/examples/machines/` and
-`data/examples/inputs/` are listed in the README and allowlisted in `.gitignore`.
+`data/examples/inputs/` are listed in `docs/src/tm-builder/machines.md` and allowlisted in `.gitignore`.
 Keep examples focused on distinct syntax features. Put regression fixtures under
-`python/tests/fixtures/` and keep the README aligned with implemented behavior.
+`python/tests/fixtures/` and keep the docs aligned with implemented behavior.
 
 Before opening a pull request, run the checks from the repository root:
 

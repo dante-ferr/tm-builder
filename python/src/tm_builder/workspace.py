@@ -195,11 +195,74 @@ def _editor_command() -> list[str] | None:
     return None
 
 
-def _launch(command: list[str]) -> None:
-    if sys.platform == "win32" and Path(command[0]).suffix.lower() in {".cmd", ".bat"}:
-        command = ["cmd", "/d", "/c", *command]
+EDITOR_EXTENSION = "teocomp-local.teocomp-machines"
+VSIX = PROJECT / "dist" / "tm-builder-vscode.vsix"
+
+
+def resolve_editor_cli(explicit: str) -> list[str] | None:
+    """Return the editor executable named by Make, when it exists."""
+    text = explicit.strip()
+    if not text:
+        return None
+    resolved = shutil.which(text)
+    if resolved:
+        return [resolved]
+    candidate = Path(text)
+    if candidate.is_file():
+        return [str(candidate)]
+    if sys.platform == "win32" and candidate.suffix == "" and candidate.with_suffix(".cmd").is_file():
+        return [str(candidate.with_suffix(".cmd"))]
+    return None
+
+
+def install_editor_extension(explicit: str, *, optional: bool = False, package: bool = False) -> None:
+    """Install the packaged extension. Optional setup skips a missing editor CLI."""
+    command = resolve_editor_cli(explicit)
+    if command is None:
+        message = "VS Code CLI not found; run make install-extension after installing the code command."
+        if optional:
+            print(message)
+            return
+        raise RuntimeError(message)
+    if package:
+        _package_editor_extension()
+    if not VSIX.is_file():
+        raise RuntimeError(f"Extension package not found: {VSIX}")
+    _run_editor([*command, "--uninstall-extension", EDITOR_EXTENSION], check=False)
+    _run_editor([*command, "--install-extension", str(VSIX), "--force"], check=True)
+
+
+def _package_editor_extension() -> None:
+    npm = "npm.cmd" if sys.platform == "win32" else "npm"
     try:
-        subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        completed = subprocess.run([npm, "--prefix", "editors/vscode", "run", "package"], cwd=PROJECT, check=False)
+    except OSError as error:
+        raise RuntimeError(f"Could not package the VS Code extension: {error}") from error
+    if completed.returncode != 0:
+        raise RuntimeError(f"Could not package the VS Code extension (status {completed.returncode}).")
+
+
+def _editor_argv(command: list[str]) -> list[str]:
+    if sys.platform == "win32" and Path(command[0]).suffix.lower() in {".cmd", ".bat"}:
+        return ["cmd", "/d", "/c", *command]
+    return command
+
+
+def _run_editor(command: list[str], *, check: bool) -> None:
+    stdout = subprocess.DEVNULL if not check else None
+    stderr = subprocess.DEVNULL if not check else None
+    try:
+        completed = subprocess.run(_editor_argv(command), check=False, stdin=subprocess.DEVNULL,
+                                   stdout=stdout, stderr=stderr)
+    except OSError as error:
+        raise RuntimeError(f"Could not run the editor CLI: {error}") from error
+    if check and completed.returncode != 0:
+        raise RuntimeError(f"Editor command failed with status {completed.returncode}.")
+
+
+def _launch(command: list[str]) -> None:
+    try:
+        subprocess.Popen(_editor_argv(command), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=sys.platform != "win32")
     except OSError as error:
         raise RuntimeError(f"Could not open the workspace: {error}") from error

@@ -3,6 +3,7 @@ from pathlib import Path
 from http.client import HTTPConnection
 import json
 import os
+import subprocess
 import threading
 import tempfile
 import unittest
@@ -14,7 +15,7 @@ import yaml
 from tm_builder.definition import parse_definition
 from tm_builder.designer import DiagramSource, create_server
 from tm_builder.editing import edit_yaml
-from tm_builder.workspace import documents_directory, open_in_editor, workspace_path
+from tm_builder.workspace import _run_editor, documents_directory, install_editor_extension, open_in_editor, workspace_path
 
 SOURCE = (Path(__file__).parent / 'fixtures/machines/copy.yaml').read_text()
 
@@ -44,6 +45,22 @@ class EditingTests(unittest.TestCase):
             with patch('tm_builder.workspace.shutil.which', return_value='/usr/bin/cursor'):
                 open_in_editor()
         launch.assert_called_once_with(['/usr/bin/cursor', str(workspace)])
+
+    def test_optional_extension_install_skips_a_missing_windows_cli(self):
+        with patch('tm_builder.workspace.shutil.which', return_value=None), \
+             patch('tm_builder.workspace.sys.platform', 'win32'), \
+             patch('tm_builder.workspace._package_editor_extension') as package, \
+             patch('tm_builder.workspace._run_editor') as run:
+            install_editor_extension('code', optional=True, package=True)
+        package.assert_not_called()
+        run.assert_not_called()
+
+    def test_windows_cmd_editor_runs_through_cmd(self):
+        with patch('tm_builder.workspace.sys.platform', 'win32'), \
+             patch('tm_builder.workspace.subprocess.run',
+                   return_value=subprocess.CompletedProcess([], 0)) as run:
+            _run_editor([r'C:\Program Files\Microsoft VS Code\bin\code.cmd', '--version'], check=True)
+        self.assertEqual(run.call_args.args[0][:3], ['cmd', '/d', '/c'])
 
     def test_workspace_override_and_translated_documents_folder(self):
         with tempfile.TemporaryDirectory() as directory:

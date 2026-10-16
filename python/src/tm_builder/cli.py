@@ -2,12 +2,13 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from tm_builder.definition import DefinitionError, MachineDefinition, parse_definition
 from tm_builder.simulation import simulate
 from tm_builder.inputs import InputDefinition, parse_inputs
-from tm_builder.workspace import ensure_vscode_workspace, ensure_workspace
+from tm_builder.workspace import ensure_vscode_workspace, ensure_workspace, install_editor_extension
 
 
 def main() -> None:
@@ -44,6 +45,10 @@ def main() -> None:
     schema.add_argument("--output", help="Output path (defaults to schemas/<kind>.schema.json)")
     schema.add_argument("--kind", choices=("machine", "inputs"), default="machine")
     commands.add_parser("workspace", help="Create the user workspace and print its location")
+    install = commands.add_parser("install-extension", help="Install the packaged VS Code extension")
+    install.add_argument("--code", default=os.environ.get("CODE", "code"))
+    install.add_argument("--if-available", action="store_true", help="Skip installation when the editor CLI is missing")
+    install.add_argument("--package", action="store_true", help="Package the extension before installing it")
     args = parser.parse_args()
     try:
         if args.command in (None, "design", "view"):
@@ -60,6 +65,8 @@ def main() -> None:
         elif args.command == "workspace":
             workspace = ensure_workspace()
             print(ensure_vscode_workspace(workspace))
+        elif args.command == "install-extension":
+            install_editor_extension(args.code, optional=args.if_available, package=args.package)
         else:
             workspace = ensure_workspace()
             machine = args.machine or (workspace / "machines/copy.yaml")

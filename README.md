@@ -3,140 +3,23 @@
 Define, validate, visualize, and run deterministic or nondeterministic Turing
 machines in YAML.
 
+## Online app
+
+It's possible to use TMBuilder on-line [HERE](https://tm-builder.onrender.com).
+
+However, it doesn't live update graphs on machine .yaml file changes. It also doesn't auto save: it's necessary to manually load and download ui-edited machines. If you're interested in those features, execute the app locally with the following commands.
+
 ## Setup
 
 ```bash
 make setup
+make view
 ```
 
-Setup installs dependencies and creates a `TM Builder` folder inside the
-system Documents folder, seeding its `machines/` and `inputs/` folders with
-examples. On Windows this is the Documents known folder, so a translated name
-such as `Documentos` is used. On Linux it follows `XDG_DOCUMENTS_DIR`. Existing
-files are preserved.
-It creates a private VS Code workspace configuration in the platform's app
-config directory and installs the tm-builder extension when the VS Code `code`
-command is available. Open the configured workspace with:
+Setup installs dependencies and seeds a `TM Builder` folder in your Documents
+folder. Commands, Windows, and exports are in the
+[command guide](docs/src/tm-builder/commands.md). Editing and step limits are in
+the [viewer guide](docs/src/tm-builder/viewer.md). YAML fields and examples are
+in [machine definitions](docs/src/tm-builder/machines.md).
 
-```bash
-make open-workspace
-```
-
-The **Open workspace folder** button in the state graph header opens that workspace
-in the application associated with the workspace file, after the current machine
-file has been written. Set `CODE` to an editor command to choose it explicitly.
-
-Machine files under `machines/` then get syntax, schema, and type diagnostics.
-If the VS Code CLI is not on `PATH`, pass its executable to both commands, for
-example `make setup CODE=/path/to/code` and
-`make open-workspace CODE=/path/to/code`. Set `TM_BUILDER_WORKSPACE` to the full
-path of another data folder before setup or before starting the viewer. That
-variable replaces the Documents location entirely.
-
-On Windows, run Make commands in WSL2 or Git Bash with GNU Make, Python 3.14,
-Poetry, and Node.js 20.9+. The viewer itself does not need Make. Formal PNG
-export uses LaTeX when LuaLaTeX or XeLaTeX and Poppler are on `PATH`. Without
-those tools, the viewer draws the formal table directly. `make setup-formal`
-installs the LaTeX tools on supported Linux systems.
-
-## Commands
-
-| Command | Purpose |
-| --- | --- |
-| `make view` | Open the machine picker and debugger |
-| `make check` / `make run` | Validate or run the default machine |
-| `make graph` / `make table` | Export a diagram or transition table |
-| `make dev` | Run the web UI with live reload |
-| `make test` | Run project checks |
-
-Choose files with `MACHINE=...` and `INPUTS=...`, for example:
-
-```bash
-make run MACHINE=single_tape.yaml INPUTS=binary.yaml
-```
-
-See the [command guide](docs/src/tm-builder/commands.md) for options, defaults,
-and export details.
-
-User files live outside the application repository, so the workspace can be a
-Git repository for your group. Initialize Git there and add a shared remote, or
-point `TM_BUILDER_WORKSPACE` at an existing clone. The viewer starts with a
-machine picker; CLI commands that need a machine default to `copy.yaml`.
-
-Edit a loaded machine directly in the graph. The icon tools in its header let you
-select and edit a state, connection, or group, add a state by clicking empty canvas,
-add a group and choose its states, or create a transition by selecting its source
-and destination. Edit state properties
-and per-tape read/write/move fields in place; Enter or the checkmark saves to YAML.
-Use the settings icon for model, alphabets, blank, and tape count. The local viewer
-autosaves those edits to the selected workspace file. Imported files stay in memory;
-download YAML to keep their changes. Save unsaved VS Code buffers
-before UI edits. The hosted app does not use a workspace: it lists bundled examples,
-keeps UI edits in memory, and offers **Save YAML** to download the machine. It does
-not create files or open a workspace folder. Playback and debugger controls expand from the bottom bar when
-you load a trace, and can be collapsed to give the graph more room.
-
-Use **New machine** (+) in the library to create a workspace YAML file with one
-start state. Alphabet settings use editable symbol lists: add or remove one
-character per entry; the app writes valid YAML automatically. **Ctrl+Z** undoes
-the last applied graph/settings change and **Ctrl+Shift+Z** redoes it (Cmd on
-macOS). Both autosave the result. Typing in a text field keeps normal text undo.
-History covers the current machine's latest 50 edits during the server session.
-
-## Examples
-
-Bundled examples live in `data/examples/` and are copied to a new workspace.
-
-| Machine | Demonstrates | Setup |
-| --- | --- | --- |
-| [copy](data/examples/machines/copy.yaml) | Multiple tapes and flat rules | [copy](data/examples/inputs/copy.yaml) |
-| [single_tape](data/examples/machines/single_tape.yaml) | Grouped rules, quoted symbols, rejection | [binary](data/examples/inputs/binary.yaml) |
-| [nondeterministic_contains_one](data/examples/machines/nondeterministic_contains_one.yaml) | Nondeterministic rules | [binary](data/examples/inputs/binary.yaml) |
-| [halt](data/examples/machines/halt.yaml) | Custom blank and terminal states | — |
-| [binary_counter](data/examples/machines/binary_counter.yaml) | Exponential binary counting and long traces | [8,190 steps](data/examples/inputs/binary_counter.yaml), [1,000,000 steps](data/examples/inputs/binary_counter_million.yaml) |
-| [state_groups](data/examples/machines/state_groups.yaml) | Optional state groups | — |
-| [four_groups](data/examples/machines/four_groups.yaml) | Four groups, each linked to two neighbors | [ab](data/examples/inputs/four_groups.yaml) |
-
-Selecting the binary counter loads the million-step input. Allow at least 1,000,000
-steps and press **Load Trace**. Execution runs on a background request thread;
-browser workers load and index long traces. Set playback speed with the slider or
-numeric field, then seek freely through the recorded timeline.
-
-The UI benchmarks this computer when the server starts being used and estimates a
-default step budget of roughly five seconds. The step limit is editable, up to
-10,000,000; actual runtime depends on the machine and input. Short computations
-halt earlier. The CLI retains its explicit `--max-steps` option (default 1000).
-Nondeterministic search also retains its 10,000-configuration bound.
-
-Valid machines can run forever. The checker validates syntax and
-machine structure; it cannot solve the general halting problem. Reaching a step or
-search limit reports **Limit reached** (`RUNNING`), never a rejection or proof of
-an infinite computation. There is no unbounded execution mode.
-
-## YAML
-
-Machine YAML requires `name`, `model`, `tapes`, `blank`, `input_alphabet`,
-`tape_alphabet`, `states`, `start`, `accept`, `reject`, and `transitions`.
-`model` is `deterministic` or `nondeterministic`. Each transition has one
-`[read, write, move]` triple per tape; moves are `L`, `R`, or `S`. Rules can be
-flat or grouped by source state. Optional `groups` maps each cluster name to the
-states it encloses in the state graph. A state belongs to at most one group, and
-omitting `groups` leaves every state ungrouped. Symbols are single characters;
-quote YAML values that could be read as numbers or booleans. See [the copy example](data/examples/machines/copy.yaml)
-and [the state groups example](data/examples/machines/state_groups.yaml).
-
-Input YAML has a `tapes` list. Each entry has `contents` and optional `origin`
-and `head` positions, which default to zero. Omitted trailing tapes start blank.
-
-```yaml
-tapes:
-  - contents: "abba"
-    origin: 0
-    head: 0
-```
-
-## Development
-
-Use Node.js 20.9 or newer. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and
-[web/README.md](web/README.md) for web details. Licensed under
-[Apache-2.0](LICENSE).
+Licensed under [Apache-2.0](LICENSE).

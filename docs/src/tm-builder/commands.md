@@ -14,6 +14,10 @@ user workspace's matching folder.
 | `make open-workspace` | Open the configured machine workspace in VS Code. |
 | `make setup-formal` | Install OS packages needed for formal PNG table exports on supported Linux distributions. |
 
+On Windows, install GNU Make, Python 3.14, Poetry, and Node.js 20.9 or newer.
+`make setup` and `make view` run in Command Prompt. Run `make dev` and
+`make check-all` in WSL2 or Git Bash.
+
 The default workspace is a `TM Builder` folder inside the system Documents
 folder. Windows uses the Documents known folder, including a translated folder
 such as `Documentos`. Linux uses `XDG_DOCUMENTS_DIR`. `make setup` creates its
@@ -78,3 +82,6 @@ tools, the viewer draws the formal table directly.
 | `make test-vscode` | Run the VS Code Extension Development Host checks. |
 | `make docs-build` | Build this book into `docs/book/`. |
 | `make docs-serve` | Serve the book locally with live reload. |
+
+Use Node.js 20.9 or newer. See [CONTRIBUTING.md](../../../CONTRIBUTING.md) for
+the review checks and [web/README.md](../../../web/README.md) for the web app.
